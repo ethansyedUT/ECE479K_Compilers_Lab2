@@ -1,0 +1,20 @@
+For Lab 2 you will continue to use source codes of your Lab1. 
+
+You will need to change the Makefile under `handout/test` given
+to you for Lab 1, to set the variable `lab2` from false to true
+(at line 8).
+
+`cgen_case.cc` contains the code to generating the COOL case 
+struct, which you can copy to the right place in your cgen.cc
+function. 
+
+The `src_gc/` directory contains the files you need for the
+extra credit part of Lab 2. The `src_gc/gc.cc` is the source
+code for the modified libc memory allocation functions. 
+`src_gc/gc.so` is a prebuilt shared lib from `gc.cc`, you 
+can either use it or build your own from `src_gc/gc.cc`. 
+`src_gc/Makefile` is meant to replace the Makefile under `handout/test`,
+which links the custom libc memory functions of `gc.so`. 
+If you choose to do Lab 2 extra credit part, simply copy the
+`src_gc/Makefile` and `src_gc/gc.so` to `handout/test` of your 
+lab 1 files.
