@@ -1,0 +1,10 @@
+Desired Main IR:
+
+@.str = internal constant [25 x i8] c"Main.main() returned %d\n"
+define i32 @main() {
+entry:
+ %tmp.0 = call i32 @Main_main( )
+ %tmp.1 = getelementptr [25 x i8], [25 x i8]* @.str, i32 0, i32 0
+ %tmp.2 = call i32(i8*, ... ) @printf(i8* %tmp.1, i32 %tmp.0)
+ ret i32 0
+}
