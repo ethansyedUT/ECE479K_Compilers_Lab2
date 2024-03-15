@@ -2,3 +2,11 @@
 *.tar
 *.gz
 *.o
+
+# Ignore generated LLVM IR files (including ASTs)
+*.ast
+*.ll
+
+#Compiled 
+cgen-1
+cgen-2

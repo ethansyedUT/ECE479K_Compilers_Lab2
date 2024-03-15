@@ -394,127 +394,43 @@ void CgenClassTable::code_main()
   // Define a function main that has no parameters and returns an i32
   std::string mainName = "main";
 
-  // test op_types
-  op_type i8(INT8);
-  op_type i8ptr(INT8_PTR);
-  op_type i8pptr(INT8_PPTR);
-
-  op_type i32(INT32);
-  op_type i32ptr(INT32_PTR);
-  op_type i32pptr(INT32_PPTR);
-
-  op_type emp(EMPTY);
-  op_type vd(VOID);
-  op_type va(VAR_ARG);
-
-  op_arr_type i8arr(INT8, 25);
-  op_arr_ptr_type i8arrptr(INT8, 25);
-  op_arr_type i32arr(INT32_PTR, 1);
-
   std::vector<operand> non;
   std::vector<op_type> null;
-
   int_value zero = int_value(0);
-
   ValuePrinter vp(*ct_stream);
 
-  /*
-  // test operands
-operand tester = operand(i32, "tester");
-operand nun = operand();
-int_value zero = int_value(0);
+  global_value cv = global_value(op_arr_ptr_type(INT8, 25), ".str");
 
-// Testing op_types
-std::vector<testField> testop_types;
-
-// Testing operands
-std::vector<testField> testops;
-
-testop_types.push_back(testField("INT1", &i1));
-testop_types.push_back(testField("INT1_PTR", &i1ptr));
-testop_types.push_back(testField("INT1_PPTR", &i1pptr));
-
-testop_types.push_back(testField("INT8", &i8));
-testop_types.push_back(testField("INT8_PTR", &i8ptr));
-testop_types.push_back(testField("INT8_PPTR", &i8pptr));
-testop_types.push_back(testField("INT8_ARR", &i8arr));
-
-testop_types.push_back(testField("INT32", &i32));
-testop_types.push_back(testField("INT32_PTR", &i32ptr));
-testop_types.push_back(testField("INT32_PPTR", &i32pptr));
-testop_types.push_back(testField("INT32_ARR", &i32arr));
-
-testop_types.push_back(testField("VOID", &vd));
-testop_types.push_back(testField("VAR_ARG", &va));
-testop_types.push_back(testField("EMPTY", &emp));
-
-// Trying op_type subclasses
-testop_types.push_back(testField("INT8_PTR", &i8arr));
-testop_types.push_back(testField("INT8_ARRPTR", &i8arrptr));
-testop_types.push_back(testField("INT32_PTR", &i32arr));
-
-testops.push_back(testField(&cv));
-
-testops.push_back(testField(&str)); // Adding str to test vector
-*/
-
-  global_value cv = global_value(i8arrptr, ".str");
-
-  // of operand type
-  const_value str = const_value(i8arr, "Main.main() returned %d\n", true);
+  const_value str = const_value(op_arr_type(INT8, 25), "Main.main() returned %d\n", true);
   vp.init_constant(".str", str);
-  vp.define(i32, "main", non);
+  vp.define(op_type(INT32), "main", non);
 
   // Define an entry basic block
   vp.begin_block("entry");
 
   // Call Main_main(). This returns int for phase 1, Object for phase 2
-  operand ret = vp.call(null, i32, "Main_main", true, non);
+  operand ret = vp.call(null, op_type(INT32), "Main_main", true, non);
 
 #ifdef LAB2
 // LAB2
 #else
   // Lab1
   // Get the address of the string "Main_main() returned %d\n" using "getelementptr"
-  operand arg1 = vp.getelementptr(i8arr, cv, zero, zero, i8ptr);
+  operand arg1 = vp.getelementptr(op_arr_type(INT8, 25), cv, zero, zero, op_type(INT8_PTR));
   // Call printf with the string address of "Main_main() returned %d\n"
   // and the return value of Main_main() as its arguments
   std::vector<op_type> argTypes;
-  argTypes.push_back(i8ptr);
+  argTypes.push_back(op_type(INT8_PTR));
 
   std::vector<operand> args;
   args.push_back(arg1);
   args.push_back(ret);
 
-  vp.call_variadic(argTypes, i32, "printf", true, args);
+  vp.call_variadic(argTypes, op_type(INT32), "printf", true, args);
 
-  // Insert return 0
   vp.ret(zero);
   vp.end_define();
-
-  // value_printer_tester(vp, testops, testop_types);
-
 #endif
-}
-
-// function to test Value_printer functions
-void value_printer_tester(ValuePrinter vp, std::vector<testField> operandsToTest, std::vector<testField> op_typesToTest)
-{
-  using namespace std;
-  cerr << "\n===============================================\n";
-  cerr << "op_types IR return:\n\n";
-  for (auto op_typeTest = op_typesToTest.begin(); op_typeTest != op_typesToTest.end(); ++op_typeTest)
-  {
-    cerr << *op_typeTest << std::endl;
-  }
-
-  cerr << "===============================================\n";
-  cerr << "Operands to Test:\n\n";
-  for (auto opers = operandsToTest.begin(); opers != operandsToTest.end(); ++opers)
-  {
-    cerr << *opers << std::endl;
-  }
-  cerr << "===============================================\n";
 }
 
 // Get the root of the class tree.
@@ -648,29 +564,6 @@ void CgenNode::codeGenMainmain()
   // Generally what you need to do are:
   // -- setup or create the environment, env, for translating this method
   // -- invoke mainMethod->code(env) to translate the method
-
-  /*
-    class__class(Symbol a1, Symbol a2, Features a3, Symbol a4) {
-    name = a1;
-    parent = a2;
-    features = a3;
-    filename = a4;
-  }
-  */
-  /*
-   Symbol name = new StringEntry("Main", 0);
-   Symbol nothing = new StringEntry();
-   Features none = single_Features(mainMethod->copy_Feature());
-   Symbol fileName = new StringEntry("test.cl", 0);
-   Class_ BigMain = class_(name, nothing, none, fileName);
-   */
-
-  // CgenClassTable* startTable = new CgenClassTable(myClasses, *ct_stream);
-
-  // CgenNode(Class_ c, Basicness bstatus, CgenClassTable *class_table)
-  // CgenNode *start = new CgenNode(BigMain, Basic, class_table);
-
-  // CgenEnvironment(std::ostream &stream, CgenNode *cur_class)
   CgenEnvironment env = CgenEnvironment(*ct_stream, this);
 
   mainMethod->code(&env);
@@ -742,7 +635,6 @@ void method_class::code(CgenEnvironment *env)
   operand finalExpression = expr->code(env);
   vp.ret(finalExpression);
 
-  // vp.ret(int_value(0)); // Temporary
   vp.end_define();
 }
 
@@ -1008,16 +900,16 @@ operand divide_class::code(CgenEnvironment *env)
     retVal = vp.div(e1->code(env), divResult);
   }
 
-  // divide by zero (runtime error) check
-  std::string trueLabel = env->new_label("divby0_", false);
-  std::string falseLabel = env->new_label("cont", true);
-  operand divZero = vp.icmp(EQ, divResult, int_value(0));
-  vp.branch_cond(divZero, trueLabel, falseLabel);
+  // // divide by zero (runtime error) check
+  // std::string trueLabel = env->new_label("divby0_", false);
+  // std::string falseLabel = env->new_label("cont", true);
+  // operand divZero = vp.icmp(EQ, divResult, int_value(0));
+  // vp.branch_cond(divZero, trueLabel, falseLabel);
 
-  vp.begin_block(trueLabel);
-  vp.call(empty, op_type(VOID), "abort", true, nun);
+  // vp.begin_block(trueLabel);
+  // vp.call(empty, op_type(VOID), "abort", true, nun);
 
-  vp.begin_block(falseLabel);
+  // vp.begin_block(falseLabel);
 
   return retVal;
 }

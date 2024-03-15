@@ -7,7 +7,9 @@
                 "${workspaceFolder}/handout/cool-support/include",
                 "${workspaceFolder}/handout/src"
             ],
-            "defines": [],
+            "defines": [
+                "LAB2"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "gnu++17",
