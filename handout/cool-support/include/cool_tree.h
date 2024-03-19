@@ -253,10 +253,6 @@ public:
   }
   Feature copy_Feature();
   void dump(std::ostream &stream, int n);
-  // ADDED LAB 1
-  // Expression get_expression();
-  // Formals get_formals();
-  // Symbol get_name();
 
 #ifdef Feature_SHARED_EXTRAS
   Feature_SHARED_EXTRAS

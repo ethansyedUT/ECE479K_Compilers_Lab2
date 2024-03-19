@@ -328,6 +328,7 @@ void CgenClassTable::setup_external_functions()
 
 #ifdef LAB2
   // TODO: add code here
+
 #endif
 }
 
@@ -373,6 +374,12 @@ void CgenClassTable::code_module()
 void CgenClassTable::code_classes(CgenNode *c)
 {
   // TODO: add code here
+  // set up environment
+  // iterate through class table
+  // c->code_class()
+
+  CgenEnvironment env(*(c->get_ostream()), c);
+  // c->code_class()
 }
 #endif
 
@@ -381,6 +388,7 @@ void CgenClassTable::code_constants()
 {
 #ifdef LAB2
   // TODO: add code here
+  stringtable.code_string_table(*ct_stream, this);
 #endif
 }
 
@@ -392,28 +400,45 @@ void CgenClassTable::code_main()
   // TODO: add code here
 
   // Define a function main that has no parameters and returns an i32
-  std::string mainName = "main";
+  // std::string mainName = "main";
 
+  // int_value zero = int_value(0);
+
+  // global_value cv = global_value(op_arr_ptr_type(INT8, 25), ".str");
+
+  // const_value str = const_value(op_arr_type(INT8, 25), "Main.main() returned %d\n", true);
+  // vp.init_constant(".str", str);
+  ValuePrinter vp(*ct_stream);
   std::vector<operand> non;
   std::vector<op_type> null;
-  int_value zero = int_value(0);
-  ValuePrinter vp(*ct_stream);
-
-  global_value cv = global_value(op_arr_ptr_type(INT8, 25), ".str");
-
-  const_value str = const_value(op_arr_type(INT8, 25), "Main.main() returned %d\n", true);
-  vp.init_constant(".str", str);
   vp.define(op_type(INT32), "main", non);
 
   // Define an entry basic block
   vp.begin_block("entry");
 
   // Call Main_main(). This returns int for phase 1, Object for phase 2
-  operand ret = vp.call(null, op_type(INT32), "Main_main", true, non);
+
+  // parse through all classes -> find main
+  //  parse through all methods in main -> find main
+  //  get proper return type & codegen the method
 
 #ifdef LAB2
-// LAB2
+  // LAB2
+
+  // Function: resolve all methods in the main
+
+  /* --------- Control Flow ---------- //
+    1. parse through all methods
+    2. call code on the method
+      if method is "main"
+        define entry *special*
+
+    3. once all methods are resolved end_define
+  // -------------------------------- */
+
+  vp.end_define();
 #else
+  operand ret = vp.call(null, op_type(INT32), "Main_main", true, non);
   // Lab1
   // Get the address of the string "Main_main() returned %d\n" using "getelementptr"
   operand arg1 = vp.getelementptr(op_arr_type(INT8, 25), cv, zero, zero, op_type(INT8_PTR));
@@ -495,7 +520,33 @@ void StrTable::code_string_table(std::ostream &s, CgenClassTable *ct)
 void StringEntry::code_def(std::ostream &s, CgenClassTable *ct)
 {
 #ifdef LAB2
+  if (cgen_debug)
+  {
+  }
+
   // TODO: add code here
+  ValuePrinter vp(s);
+
+  std::string const_val_name = ct->get_const_name("str", true);
+  vp.init_constant(const_val_name, const_value(op_arr_type(INT8, this->str.length() + 1), this->str, false));
+
+  std::string const_struct_name = ct->get_const_name("str", true);
+  global_value s_name(op_type("String"), const_struct_name);
+  std::vector<op_type> fields;
+  std::vector<const_value> init_values;
+
+  // Add Vtable
+  fields.emplace_back(op_type("_String_vtable", 1));
+  init_values.emplace_back(const_value(op_type("_String_vtable", 1), "@_String_vtable_prototype", false));
+
+  // Add pointer to const
+  op_arr_type arr_ptr_type(INT8, this->str.length() + 1);
+  const_value string_name(arr_ptr_type, "@" + const_val_name, false);
+  fields.emplace_back(op_type(INT8_PTR));
+  init_values.emplace_back(string_name);
+
+  vp.init_struct_constant(s_name, fields, init_values);
+
 #endif
 }
 
@@ -520,8 +571,97 @@ void CgenNode::setup(int tag, int depth)
   this->tag = tag;
 #ifdef LAB2
   layout_features();
+  if (cgen_debug)
+  {
+    std::cerr << "Class: " << this->name->get_string() << "\n"
+              << std::endl;
 
+    std::cerr << "Attributes: " << std::endl;
+    for (attribute_mine m : this->get_attributes_in_class())
+    {
+      std::cerr << m.get_name() << ": " << m.get_return_type().get_name() << std::endl;
+    }
+    std::cerr << std::endl;
+
+    std::cerr << "Methods: " << std::endl;
+    for (method_mine m : this->get_methods_in_class())
+    {
+      std::cerr << "Method Name: " << m.get_name() << std::endl;
+      std::cerr << "Parameters: " << std::endl;
+      for (operand n : m.get_params())
+      {
+        std::cerr << n.get_name() << " : " << n.get_type().get_name() << std::endl;
+      }
+      std::cerr << std::endl;
+    }
+
+    std::cerr << "===============" << std::endl;
+  }
   // TODO: add code here
+
+  ValuePrinter vp(*ct_stream);
+
+  // class type define
+  std::vector<op_type> class_attributes;
+  class_attributes.push_back(op_type(this->get_vtable_type_name(), 1));
+  for (attribute_mine attr : this->get_attributes_in_class())
+  {
+    op_type retain = attr.get_return_type();
+    if (retain.get_name() == "%int")
+      class_attributes.emplace_back(op_type(INT32));
+    else if (retain.get_name() == "%bool")
+      class_attributes.emplace_back(op_type(INT1));
+    else if (retain.get_name() == "%sbyte*")
+      // TODO: Not Machine agnostic, change later
+      class_attributes.emplace_back(op_type(INT8_PTR));
+    else
+      class_attributes.emplace_back(attr.get_return_type());
+  }
+  vp.type_define(this->get_type_name(), class_attributes);
+
+  // vtable type define + const_values for vtable init
+  std::vector<const_value> vtable_init_values;
+  std::vector<op_type> vtable_methods;
+
+  // add tag
+  vtable_methods.emplace_back(op_type(INT32));
+  vtable_init_values.emplace_back(const_value(op_type(INT32), std::to_string(tag), true));
+
+  // add int size of obj (no. bytes)
+  vtable_methods.emplace_back(op_type(INT32));
+  const_value obj_size(op_type(INT32), "ptrtoint (" + op_type(this->get_type_name(), 1).get_name() + " getelementptr (%" + this->get_type_name() + ", " + op_type(this->get_type_name(), 1).get_name() + " null, i32 1) to i32)", true);
+  vtable_init_values.push_back(obj_size);
+
+  // add ptr to const char string
+  op_arr_type arr_ptr_type(INT8, this->name->get_string().length() + 1);
+  const_value class_name(arr_ptr_type, "@" + this->name->get_string(), false);
+  // vp.init_constant(this->name->get_string(), const_value(arr_ptr_type, this->name->get_string(), false));
+  // TODO: Do I need to add class names
+  // stringtable.add_string(this->name->get_string());
+  vtable_methods.emplace_back(op_type(INT8_PTR));
+  vtable_init_values.push_back(class_name);
+
+  for (method_mine m : this->get_methods_in_class())
+  {
+    std::vector<op_type> parameters;
+    for (operand o : m.get_params())
+    {
+      parameters.push_back(o.get_type());
+    }
+    op_func_type func_type(m.get_return_type(), parameters);
+    vtable_methods.emplace_back(func_type);
+    vtable_init_values.emplace_back(const_value(func_type, "@" + m.get_name(), true));
+  }
+  if (vtable_methods.empty())
+  {
+    vtable_methods.emplace_back(op_type());
+    vtable_init_values.emplace_back(const_value(op_type(), "null", false));
+  }
+  vp.type_define(this->get_vtable_type_name(), vtable_methods);
+
+  // vtable prototype
+  global_value vtab_const_name(op_type(this->get_vtable_type_name()), this->get_vtable_name());
+  vp.init_struct_constant(vtab_const_name, vtable_methods, vtable_init_values);
 
 #endif
 }
@@ -531,7 +671,43 @@ void CgenNode::setup(int tag, int depth)
 // and assigning each attribute a slot in the class structure.
 void CgenNode::layout_features()
 {
+  if (cgen_debug)
+  {
+    std::cerr << "Class: " << this->get_type_name() << "\n"
+              << std::endl;
+  }
   // TODO: add code here
+  /* Fields required
+  Features features;
+  Symbol filename;
+
+  vtable type name
+  init function name
+
+  */
+
+  //  Basically create function definitions for methods within each class
+
+  /* --------- Control Flow --------- /
+  1. Iterate through feature list of class
+  2. For each feature call (polymorphic) layout_feature()
+  2a. Layout feature will generate LLVM IR for function definition
+  3. End
+
+  / -------------------------------- */
+  ValuePrinter vp(*ct_stream);
+
+  int n = 0;
+  while (features->more(n))
+  {
+    features->nth(n)->layout_feature(this);
+    n++;
+  }
+
+  if (cgen_debug)
+  {
+    std::cerr << "======================" << std::endl;
+  }
 }
 
 // Class codegen. This should performed after every class has been setup.
@@ -625,7 +801,7 @@ void method_class::code(CgenEnvironment *env)
   ValuePrinter vp(*env->cur_stream);
 
   std::vector<operand> null;
-  vp.define(op_type(INT32), "Main_main", null);
+  vp.define(op_type(INT32), name->get_string(), null);
 
   // change in later labs
   //  vp.begin_block(name->get_string());
@@ -636,12 +812,6 @@ void method_class::code(CgenEnvironment *env)
   vp.ret(finalExpression);
 
   vp.end_define();
-}
-
-void code_helper()
-{
-  // use this for method_class::code() in future labs
-  // recurse through the tree here and call based on cgen node type
 }
 
 // Codegen for expressions. Note that each expression has a value.
@@ -1117,6 +1287,71 @@ void method_class::layout_feature(CgenNode *cls)
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here
+  if (cgen_debug)
+  {
+    std::cerr << "Testing Methods" << std::endl;
+    std::cerr << "Method Name: " << this->name->get_string() << "\t| Return Type:" << this->get_return_type()->get_string() << "\n"
+              << std::endl;
+  }
+
+  ValuePrinter vp(*(cls->get_ostream()));
+
+  // Get return type
+  op_type returnType;
+  std::string returnTypeString = this->get_return_type()->get_string();
+
+  if (returnTypeString == "Int")
+    returnType = op_type(INT32);
+  else if (returnTypeString == "Bool")
+    returnType = op_type(INT1);
+  else
+    returnType = op_type(returnTypeString);
+
+  // else if (returnTypeString == "String")
+  //   returnType = op_type(INT32);
+  // else if (returnTypeString == "SELF_TYPE") // return the type of the obj calling it
+  //   returnType = op_type("SELF_TYPE");
+  // else if (returnTypeString == "Object")
+  //   returnType = op_type(OBJ);
+
+  // Get all params (formals)
+  std::vector<operand> parameters;
+  std::vector<op_type> params;
+  int iter = 0;
+
+  op_type temp = op_type(cls->get_name()->get_string(), 1);
+  params.emplace_back(temp);
+  parameters.emplace_back(operand(temp, cls->get_name()->get_string()));
+
+  while (formals->more(iter))
+  {
+    std::string paramName = formals->nth(iter)->get_name()->get_string();
+    std::string typeName = formals->nth(iter)->get_type_decl()->get_string();
+
+    op_type resolve_type;
+    if (typeName == "Int")
+      // params.emplace_back(operand((INT32), paramName));
+      resolve_type = op_type(INT32);
+    else if (typeName == "Bool")
+      resolve_type = op_type(INT1);
+    else
+      resolve_type = op_type(typeName);
+    // TODO:
+    // SHOULD I CHECK IF PARAM IS SELF_TYPE AND THROW ERR
+
+    // else if (typeName == "String")
+    //   params.emplace_back(op_type(INT32));
+    // else if (typeName == "SELF_TYPE")
+    //   params.emplace_back(op_type("SELF_TYPE"));
+    // else if (typeName == "Object") // what should I do w/ objs
+    //   params.emplace_back(op_type(OBJ));
+    params.push_back(resolve_type);
+    parameters.emplace_back(operand(resolve_type, paramName));
+    iter++;
+  }
+  vp.declare(returnType, cls->get_name()->get_string() + "_" + this->name->get_string(), params);
+  cls->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters);
+
 #endif
 }
 
@@ -1143,6 +1378,23 @@ void attr_class::layout_feature(CgenNode *cls)
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here
+  if (cgen_debug)
+  {
+    std::cerr << "Testing attributes" << std::endl;
+    std::cerr << this->type_decl->get_string() << "\n"
+              << std::endl;
+  }
+  std::string typeName = this->type_decl->get_string();
+  op_type resolve_type;
+  if (typeName == "Int")
+    // params.emplace_back(operand((INT32), paramName));
+    resolve_type = op_type(INT32);
+  else if (typeName == "Bool")
+    resolve_type = op_type(INT1);
+  else
+    resolve_type = op_type(typeName);
+
+  cls->add_attribute(this->name->get_string(), resolve_type);
 #endif
 }
 

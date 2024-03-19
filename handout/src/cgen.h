@@ -18,6 +18,35 @@
 #include "value_printer.h"
 #include <map>
 
+// ---------------- My Classes ---------------- //
+class method_mine
+{
+public:
+  method_mine(std::string nm, op_type rt_type, std::vector<operand> parameters)
+      : name(nm), returnType(rt_type), params(parameters) {}
+  std::string get_name() { return name; }
+  op_type get_return_type() { return returnType; }
+  std::vector<operand> get_params() { return params; }
+
+private:
+  std::string name;
+  op_type returnType;
+  std::vector<operand> params;
+};
+
+class attribute_mine
+{
+public:
+  attribute_mine(std::string nm, op_type tp)
+      : name(nm), type(tp) {}
+  std::string get_name() { return name; }
+  op_type get_return_type() { return type; }
+
+private:
+  std::string name;
+  op_type type;
+};
+
 class CgenNode;
 
 // CgenClassTable represents the top level of a Cool program, which is
@@ -46,10 +75,7 @@ private:
   void setup_classes(CgenNode *c, int depth);
 
   // TODO: implement the following functions.
-  std::vector<CgenNode *> getNds()
-  {
-    return nds;
-  }
+  std::vector<CgenNode *> getNds() { return nds; }
   // Setup each class in the table and prepare for code generation phase
   void setup();
   // Code generation functions. You need to write these functions.
@@ -67,11 +93,18 @@ private:
   CgenNode *root(); // Get the root of the class Tree, i.e. Object
 public:
   int get_num_classes() const { return current_tag; }
+  std::string get_const_name(std::string prefix, bool incr)
+  {
+    std::string suffix = std::to_string(constant_counter);
+    constant_counter += incr;
+    return prefix + suffix;
+  }
 
 private:
   // Class lists and current class tag
   std::vector<CgenNode *> nds, special_nds;
   int current_tag;
+  int constant_counter;
 
 public:
   // The ostream where we are emitting code
@@ -126,10 +159,6 @@ public:
 
   // TODO: Complete the implementations of following functions
   // and add more as necessary
-  CgenNode *get_parentNode()
-  {
-    return parentnd;
-  }
 
   // Class setup. You need to write the body of this function.
   void setup(int tag, int depth);
@@ -143,6 +172,23 @@ public:
 #endif
   void codeGenMainmain();
 
+  // My Methods
+  CgenNode *get_parentNode() { return parentnd; }
+  std::ostream *get_ostream() { return ct_stream; }
+  void add_method(std::string nm, op_type rt, std::vector<operand> parameters)
+  {
+    method_mine temp = method_mine(nm, rt, parameters);
+    methods_in_class.emplace_back(temp);
+  }
+  void add_attribute(std::string nm, op_type type)
+  {
+    attribute_mine temp = attribute_mine(nm, type);
+    attributes_in_class.emplace_back(temp);
+  }
+
+  std::vector<method_mine> get_methods_in_class() { return methods_in_class; }
+  std::vector<attribute_mine> get_attributes_in_class() { return attributes_in_class; }
+
 private:
   CgenNode *parentnd;               // Parent of class
   std::vector<CgenNode *> children; // Children of class
@@ -153,6 +199,12 @@ private:
   std::ostream *ct_stream;
 
   // TODO: Add more functions / fields here as necessary.
+
+  // My fields
+  std::vector<method_mine> methods_in_class;
+  std::vector<attribute_mine> attributes_in_class;
+
+  // Add DS id_table for each class to ensure non-dual func redef?
 };
 
 // CgenEnvironment provides the environment for code generation of a method.
@@ -173,8 +225,6 @@ public:
   {
     var_table.enterscope();
     // TODO: Walk here for variables???
-    // cur_class->dump(*cur_stream, 10);
-    // var_table.exitscope();
   }
 
   // fresh name generation functions
