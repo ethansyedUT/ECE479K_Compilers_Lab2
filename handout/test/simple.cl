@@ -8,11 +8,11 @@ class Hello{
 
 class Main {
     x : Int;
-    main() : Object {
+    main() : Int {
         0
     };
 
-    subMethod(bodyPillow : Hello) : Object {
+    subMethod(bodyPillow : Hello) : Int {
         0
     };
 };

@@ -4,7 +4,7 @@ SEMANT = ../reference-binaries/semant
 CLANG = clang-15
 OPT = opt
 
-debug = false
+debug = true
 lab2 = true
 proj_dir = ../src
 

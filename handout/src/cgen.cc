@@ -380,6 +380,20 @@ void CgenClassTable::code_classes(CgenNode *c)
 
   CgenEnvironment env(*(c->get_ostream()), c);
   // c->code_class()
+  // std::cerr << c->get_name()->get_string() << std::endl;
+  // std::cerr << this.
+  // for (CgenNode *a : this->nds)
+  // {
+  //   std::cerr << a->get_name()->get_string() << std::endl;
+  // }
+  // for (CgenNode *a : this->special_nds)
+  // {
+  //   std::cerr << a->get_name()->get_string() << std::endl;
+  // }
+  for (CgenNode *a : c->get_children())
+  {
+    a->code_class();
+  }
 }
 #endif
 
@@ -408,13 +422,10 @@ void CgenClassTable::code_main()
 
   // const_value str = const_value(op_arr_type(INT8, 25), "Main.main() returned %d\n", true);
   // vp.init_constant(".str", str);
+
   ValuePrinter vp(*ct_stream);
   std::vector<operand> non;
   std::vector<op_type> null;
-  vp.define(op_type(INT32), "main", non);
-
-  // Define an entry basic block
-  vp.begin_block("entry");
 
   // Call Main_main(). This returns int for phase 1, Object for phase 2
 
@@ -435,6 +446,32 @@ void CgenClassTable::code_main()
 
     3. once all methods are resolved end_define
   // -------------------------------- */
+
+  // find main method and get
+  op_type main_method_type;
+  for (CgenNode *_class : this->nds)
+  {
+    // std::string class_name = get_name()->get_string();
+    if (_class->get_name()->get_string() == "Main")
+    {
+      // std::cerr << "Hello" << std::endl;
+      for (method_mine m : _class->get_methods_in_class())
+      {
+        if (m.get_name() == "Main_main")
+        {
+          main_method_type = m.get_return_type();
+        }
+      }
+    }
+  }
+  // TODO: Should LLVM main retain int type
+  vp.define(op_type(INT32), "main", non);
+  // Define an entry basic block
+
+  vp.begin_block("entry");
+  // vp.init_constant("mainsudoobj", const_value(op_type("Main"), "mainsudoobj", false));
+  vp.call(null, main_method_type, "Main_main", true, non);
+  vp.ret(int_value(0));
 
   vp.end_define();
 #else
@@ -635,7 +672,7 @@ void CgenNode::setup(int tag, int depth)
   // add ptr to const char string
   op_arr_type arr_ptr_type(INT8, this->name->get_string().length() + 1);
   const_value class_name(arr_ptr_type, "@" + this->name->get_string(), false);
-  // vp.init_constant(this->name->get_string(), const_value(arr_ptr_type, this->name->get_string(), false));
+  vp.init_constant(this->name->get_string(), const_value(arr_ptr_type, this->name->get_string(), false));
   // TODO: Do I need to add class names
   // stringtable.add_string(this->name->get_string());
   vtable_methods.emplace_back(op_type(INT8_PTR));
@@ -720,11 +757,28 @@ void CgenNode::code_class()
     return;
   }
   // TODO: add code here
+  CgenEnvironment env(*ct_stream, this);
+  this->code_init_function(&env);
 }
 
 void CgenNode::code_init_function(CgenEnvironment *env)
 {
   // TODO: add code here
+  ValuePrinter vp(*env->cur_stream);
+  std::cerr << this->name->get_string() << std::endl;
+  for (method_mine a : this->get_methods_in_class())
+  {
+    std::cerr << a.get_return_type().get_name() << std::endl;
+
+    vp.define(a.get_return_type(), a.get_name(), a.get_params());
+    operand finalExpression = a.get_expression()->code(env);
+    vp.ret(finalExpression);
+    vp.end_define();
+  }
+  // for (CgenNode *a : this->get_children())
+  // {
+  //   a->get_name();
+  // }
 }
 
 #else
@@ -823,8 +877,6 @@ operand assign_class::code(CgenEnvironment *env)
 
   ValuePrinter vp(*env->cur_stream);
   // TODO: add code here and replace `return operand()`
-  // gaming time
-
   // get ptr to name
   // resolve the expression and store in temp
   // store the temp into the ptr to the name
@@ -1304,24 +1356,24 @@ void method_class::layout_feature(CgenNode *cls)
     returnType = op_type(INT32);
   else if (returnTypeString == "Bool")
     returnType = op_type(INT1);
+  else if (returnTypeString == "SELF_TYPE")
+    returnType = op_type(cls->get_name()->get_string());
   else
     returnType = op_type(returnTypeString);
-
-  // else if (returnTypeString == "String")
-  //   returnType = op_type(INT32);
-  // else if (returnTypeString == "SELF_TYPE") // return the type of the obj calling it
-  //   returnType = op_type("SELF_TYPE");
-  // else if (returnTypeString == "Object")
-  //   returnType = op_type(OBJ);
 
   // Get all params (formals)
   std::vector<operand> parameters;
   std::vector<op_type> params;
   int iter = 0;
 
-  op_type temp = op_type(cls->get_name()->get_string(), 1);
-  params.emplace_back(temp);
-  parameters.emplace_back(operand(temp, cls->get_name()->get_string()));
+  // Add self
+
+  if (this->name->get_string() != "main")
+  {
+    op_type temp = op_type(cls->get_name()->get_string(), 1);
+    params.emplace_back(temp);
+    parameters.emplace_back(operand(temp, cls->get_name()->get_string()));
+  }
 
   while (formals->more(iter))
   {
@@ -1330,27 +1382,22 @@ void method_class::layout_feature(CgenNode *cls)
 
     op_type resolve_type;
     if (typeName == "Int")
-      // params.emplace_back(operand((INT32), paramName));
       resolve_type = op_type(INT32);
     else if (typeName == "Bool")
       resolve_type = op_type(INT1);
+    else if (typeName == "SELF_TYPE")
+      resolve_type = op_type(cls->get_name()->get_string());
     else
       resolve_type = op_type(typeName);
+
     // TODO:
     // SHOULD I CHECK IF PARAM IS SELF_TYPE AND THROW ERR
-
-    // else if (typeName == "String")
-    //   params.emplace_back(op_type(INT32));
-    // else if (typeName == "SELF_TYPE")
-    //   params.emplace_back(op_type("SELF_TYPE"));
-    // else if (typeName == "Object") // what should I do w/ objs
-    //   params.emplace_back(op_type(OBJ));
     params.push_back(resolve_type);
     parameters.emplace_back(operand(resolve_type, paramName));
     iter++;
   }
-  vp.declare(returnType, cls->get_name()->get_string() + "_" + this->name->get_string(), params);
-  cls->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters);
+  // vp.declare(returnType, cls->get_name()->get_string() + "_" + this->name->get_string(), params);
+  cls->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters, this->expr);
 
 #endif
 }

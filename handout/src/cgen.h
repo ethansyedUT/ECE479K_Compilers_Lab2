@@ -22,16 +22,18 @@
 class method_mine
 {
 public:
-  method_mine(std::string nm, op_type rt_type, std::vector<operand> parameters)
-      : name(nm), returnType(rt_type), params(parameters) {}
+  method_mine(std::string nm, op_type rt_type, std::vector<operand> parameters, Expression express)
+      : name(nm), returnType(rt_type), params(parameters), expr(express) {}
   std::string get_name() { return name; }
   op_type get_return_type() { return returnType; }
   std::vector<operand> get_params() { return params; }
+  Expression get_expression() { return expr; }
 
 private:
   std::string name;
   op_type returnType;
   std::vector<operand> params;
+  Expression expr;
 };
 
 class attribute_mine
@@ -175,9 +177,9 @@ public:
   // My Methods
   CgenNode *get_parentNode() { return parentnd; }
   std::ostream *get_ostream() { return ct_stream; }
-  void add_method(std::string nm, op_type rt, std::vector<operand> parameters)
+  void add_method(std::string nm, op_type rt, std::vector<operand> parameters, Expression expr)
   {
-    method_mine temp = method_mine(nm, rt, parameters);
+    method_mine temp = method_mine(nm, rt, parameters, expr);
     methods_in_class.emplace_back(temp);
   }
   void add_attribute(std::string nm, op_type type)
