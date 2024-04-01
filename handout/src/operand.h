@@ -15,7 +15,8 @@
 #include <vector>
 
 /* All the types needed in MP2.1 */
-typedef enum {
+typedef enum
+{
   EMPTY,
   VOID,
   INT1,
@@ -33,7 +34,8 @@ typedef enum {
   OBJ_PPTR
 } op_type_id;
 
-class op_type {
+class op_type
+{
 protected:
   op_type_id id;
   /* LLVM std::string representation of a type */
@@ -46,26 +48,30 @@ public:
   op_type(std::string n, int ptr_level);
   op_type_id get_id() const { return id; }
   void set_id(op_type_id i) { id = i; }
-  void set_type(op_type t) {
+  void set_type(op_type t)
+  {
     id = t.get_id();
     name = t.get_name();
   }
   std::string get_name() const { return name; }
   std::string get_ptr_type_name() const { return name + "*"; }
-  bool is_ptr() {
+  bool is_ptr()
+  {
     return (id == INT1_PTR || id == INT8_PTR || id == INT32_PTR ||
             id == OBJ_PTR);
   }
   op_type get_ptr_type();
   op_type get_deref_type();
   /* Is the type a double pointer? */
-  bool is_pptr() {
+  bool is_pptr()
+  {
     return (id == INT1_PPTR || id == INT8_PPTR || id == INT32_PPTR ||
             id == OBJ_PPTR);
   }
   bool is_int_object() { return id == OBJ_PTR && name.compare("%Int*") == 0; }
   bool is_bool_object() { return id == OBJ_PTR && name.compare("%Bool*") == 0; }
-  bool is_string_object() {
+  bool is_string_object()
+  {
     return id == OBJ_PTR && name.compare("%String*") == 0;
   }
   bool is_self_type() { return id == OBJ && name.compare("%SELF_TYPE") == 0; }
@@ -73,7 +79,8 @@ public:
 };
 
 /* Pointer-to-array type */
-class op_arr_ptr_type : public op_type {
+class op_arr_ptr_type : public op_type
+{
 private:
   int size;
 
@@ -86,7 +93,8 @@ public:
 };
 
 /* Arrays are derived from op_type */
-class op_arr_type : public op_type {
+class op_arr_type : public op_type
+{
 private:
   int size;
 
@@ -98,7 +106,8 @@ public:
 };
 
 /* Function and Function pointer types */
-class op_func_type : public op_type {
+class op_func_type : public op_type
+{
 private:
   op_type res;
   std::vector<op_type> args;
@@ -111,7 +120,8 @@ public:
   bool is_pptr() { return false; }
 };
 
-class op_func_ptr_type : public op_type {
+class op_func_ptr_type : public op_type
+{
 private:
   op_type res;
   std::vector<op_type> args;
@@ -124,7 +134,8 @@ public:
   bool is_pptr() { return false; }
 };
 
-class operand {
+class operand
+{
 protected:
   op_type type;
   std::string name;
@@ -140,39 +151,46 @@ public:
   bool is_empty() const { return type.get_id() == EMPTY; }
 };
 
-class global_value : public operand {
+class global_value : public operand
+{
 private:
   operand value;
 
 public:
-  global_value(op_type t, std::string n, operand v) {
+  global_value(op_type t, std::string n, operand v)
+  {
     type = t;
     name = "@" + n;
     value = v;
   }
-  global_value(op_type t, std::string n) {
+  global_value(op_type t, std::string n)
+  {
     type = t;
     name = "@" + n;
   }
   operand get_value() { return value; }
 };
 
-class const_value : public operand {
+class const_value : public operand
+{
 protected:
   std::string value;
   bool internal;
 
 public:
   const_value(op_type t, std::string val, bool intr)
-      : value(val), internal(intr) {
+      : value(val), internal(intr)
+  {
     type = t;
     name = value;
   }
   bool is_internal() { return internal; }
   std::string get_value() { return value; }
+  void set_name(std::string nm) { name = nm; }
 };
 
-class casted_value : public const_value {
+class casted_value : public const_value
+{
 protected:
   op_type precast_type;
 
@@ -187,7 +205,8 @@ public:
   std::string get_precasttypename() { return precast_type.get_name(); }
 };
 
-class int_value : public const_value {
+class int_value : public const_value
+{
 private:
   int i_value;
 
@@ -199,13 +218,15 @@ public:
   int get_intvalue() { return i_value; }
 };
 
-class bool_value : public const_value {
+class bool_value : public const_value
+{
 private:
   bool b_value;
 
 public:
   bool_value(bool b, bool intr)
-      : const_value(op_type(INT1), "", intr), b_value(b) {
+      : const_value(op_type(INT1), "", intr), b_value(b)
+  {
     if (b)
       value = "true";
     else
@@ -215,7 +236,8 @@ public:
   int get_boolvalue() { return b_value; }
 };
 
-class null_value : public const_value {
+class null_value : public const_value
+{
 public:
   null_value(op_type t) : const_value(t, "null", true) {}
 };

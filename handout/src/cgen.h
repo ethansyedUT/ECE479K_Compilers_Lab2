@@ -16,12 +16,14 @@
 #include "stringtab.h"
 #include "symtab.h"
 #include "value_printer.h"
+#include <unordered_set>
 #include <map>
 
 // ---------------- My Classes ---------------- //
 class method_mine
 {
 public:
+  method_mine() = default;
   method_mine(std::string nm, op_type rt_type, std::vector<operand> parameters, Expression express)
       : name(nm), returnType(rt_type), params(parameters), expr(express) {}
   std::string get_name() { return name; }
@@ -39,14 +41,22 @@ private:
 class attribute_mine
 {
 public:
-  attribute_mine(std::string nm, op_type tp)
-      : name(nm), type(tp) {}
-  std::string get_name() { return name; }
+  attribute_mine() = default;
+  attribute_mine(Symbol nm, op_type tp, Expression init)
+      : name(nm), type(tp), init_val(init) {}
+  Symbol get_name() { return name; }
   op_type get_return_type() { return type; }
+  Expression get_init_expr() { return init_val; }
+  void set_name(std::string nm)
+  {
+    Entry *hold = new Entry(nm, name->get_index());
+    name = hold;
+  }
 
 private:
-  std::string name;
+  Symbol name;
   op_type type;
+  Expression init_val;
 };
 
 class CgenNode;
@@ -161,7 +171,9 @@ public:
 
   // TODO: Complete the implementations of following functions
   // and add more as necessary
-
+  void add_parent_attributes_methods(std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_values);
+  void recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_values, std::unordered_set<std::string> &attributesSeen, std::unordered_set<std::string> &methodsSeen);
+  std::string strip_method_name(std::string method_name);
   // Class setup. You need to write the body of this function.
   void setup(int tag, int depth);
 #ifdef LAB2
@@ -179,17 +191,17 @@ public:
   std::ostream *get_ostream() { return ct_stream; }
   void add_method(std::string nm, op_type rt, std::vector<operand> parameters, Expression expr)
   {
-    method_mine temp = method_mine(nm, rt, parameters, expr);
+    method_mine *temp = new method_mine(nm, rt, parameters, expr);
     methods_in_class.emplace_back(temp);
   }
-  void add_attribute(std::string nm, op_type type)
+  void add_attribute(Symbol nm, op_type type, Expression init)
   {
-    attribute_mine temp = attribute_mine(nm, type);
+    attribute_mine *temp = new attribute_mine(nm, type, init);
     attributes_in_class.emplace_back(temp);
   }
 
-  std::vector<method_mine> get_methods_in_class() { return methods_in_class; }
-  std::vector<attribute_mine> get_attributes_in_class() { return attributes_in_class; }
+  std::vector<method_mine *> get_methods_in_class() { return methods_in_class; }
+  std::vector<attribute_mine *> get_attributes_in_class() { return attributes_in_class; }
 
 private:
   CgenNode *parentnd;               // Parent of class
@@ -203,8 +215,8 @@ private:
   // TODO: Add more functions / fields here as necessary.
 
   // My fields
-  std::vector<method_mine> methods_in_class;
-  std::vector<attribute_mine> attributes_in_class;
+  std::vector<method_mine *> methods_in_class;
+  std::vector<attribute_mine *> attributes_in_class;
 
   // Add DS id_table for each class to ensure non-dual func redef?
 };

@@ -328,6 +328,100 @@ void CgenClassTable::setup_external_functions()
 
 #ifdef LAB2
   // TODO: add code here
+  // add all coolrt.o funcs here
+
+  /* Object external methods */
+  // external %Object *Object_new(void)
+  op_type Object_ptr("Object", 1), string("String"), object("Object"), string_ptr("String", 1);
+  std::vector<op_type> new_object_args;
+  vp.declare(*ct_stream, object, "Object_new", new_object_args);
+
+  // external %Object *Object_abort(Object *self)
+  std::vector<op_type> object_abort_args;
+  object_abort_args.push_back(Object_ptr);
+  vp.declare(*ct_stream, object, "Object_abort", object_abort_args);
+
+  // external %String *Object_type_name(Object *self)
+  std::vector<op_type> type_name_args;
+  type_name_args.push_back(Object_ptr);
+  vp.declare(*ct_stream, string, "Object_type_name", type_name_args);
+
+  // external %Object *Object_copy(Object *self)
+  std::vector<op_type> copy_args;
+  copy_args.push_back(Object_ptr);
+  vp.declare(*ct_stream, object, "Object_copy", copy_args);
+
+  /* Int external methods */
+  // external %Int *Int_new(void)
+  op_type Int_ptr(INT32_PTR);
+  std::vector<op_type> new_int_args;
+  vp.declare(*ct_stream, i32_type, "Int_new", new_int_args);
+
+  // external void Int_init(Int *self, int i)
+  std::vector<op_type> init_int_args;
+  init_int_args.push_back(Int_ptr);
+  init_int_args.push_back(i32_type);
+  vp.declare(*ct_stream, void_type, "Int_init", init_int_args);
+
+  /* Bool external methods */
+  // external %Bool *Bool_new(void)
+  op_type Bool_ptr("Bool", 1), bool_type(INT1);
+  std::vector<op_type> new_bool_args;
+  vp.declare(*ct_stream, bool_type, "Bool_new", new_bool_args);
+
+  // external void Bool_init(Bool *self, bool b)
+  std::vector<op_type> init_bool_args;
+  init_bool_args.push_back(Bool_ptr);
+  init_bool_args.push_back(bool_type);
+  vp.declare(*ct_stream, void_type, "Bool_init", init_bool_args);
+
+  /* String external methods */
+  // external %String *String_new(void)
+  std::vector<op_type> new_string_args;
+  vp.declare(*ct_stream, string, "String_new", new_string_args);
+
+  // external %int String_length(String *self)
+  std::vector<op_type> length_args;
+  length_args.push_back(string_ptr);
+  vp.declare(*ct_stream, i32_type, "String_length", length_args);
+
+  // external %String *String_concat(String *self, String *s)
+  std::vector<op_type> concat_args;
+  concat_args.push_back(string_ptr);
+  concat_args.push_back(string);
+  vp.declare(*ct_stream, string, "String_concat", concat_args);
+
+  // external %String *String_substr(String *self, int i, int l)
+  std::vector<op_type> substr_args;
+  substr_args.push_back(string_ptr);
+  substr_args.push_back(i32_type);
+  substr_args.push_back(i32_type);
+  vp.declare(*ct_stream, string, "String_substr", substr_args);
+
+  /* IO external methods */
+
+  // external %IO *IO_out_string(IO *self, String *s)
+  op_type IO("IO"), IO_ptr("IO", 1);
+  std::vector<op_type> out_string_args;
+  out_string_args.push_back(IO_ptr);
+  out_string_args.push_back(string);
+  vp.declare(*ct_stream, IO, "IO_out_string", out_string_args);
+
+  // external %IO *IO_out_int(IO *self, int x)
+  std::vector<op_type> out_int_args;
+  out_int_args.push_back(IO_ptr);
+  out_int_args.push_back(i32_type);
+  vp.declare(*ct_stream, IO, "IO_out_int", out_int_args);
+
+  // external %String *IO_in_string(IO *self)
+  std::vector<op_type> in_string_args;
+  in_string_args.push_back(IO_ptr);
+  vp.declare(*ct_stream, string, "IO_in_string", in_string_args);
+
+  // external %int IO_in_int(IO *self)
+  std::vector<op_type> in_int_args;
+  in_int_args.push_back(IO_ptr);
+  vp.declare(*ct_stream, i32_type, "IO_in_int", in_int_args);
 
 #endif
 }
@@ -376,23 +470,14 @@ void CgenClassTable::code_classes(CgenNode *c)
   // TODO: add code here
   // set up environment
   // iterate through class table
-  // c->code_class()
 
   CgenEnvironment env(*(c->get_ostream()), c);
-  // c->code_class()
-  // std::cerr << c->get_name()->get_string() << std::endl;
-  // std::cerr << this.
-  // for (CgenNode *a : this->nds)
-  // {
-  //   std::cerr << a->get_name()->get_string() << std::endl;
-  // }
-  // for (CgenNode *a : this->special_nds)
-  // {
-  //   std::cerr << a->get_name()->get_string() << std::endl;
-  // }
   for (CgenNode *a : c->get_children())
   {
     a->code_class();
+
+    // for each class
+    // call code_classes for each of it's children
   }
 }
 #endif
@@ -448,32 +533,32 @@ void CgenClassTable::code_main()
   // -------------------------------- */
 
   // find main method and get
-  op_type main_method_type;
-  for (CgenNode *_class : this->nds)
-  {
-    // std::string class_name = get_name()->get_string();
-    if (_class->get_name()->get_string() == "Main")
-    {
-      // std::cerr << "Hello" << std::endl;
-      for (method_mine m : _class->get_methods_in_class())
-      {
-        if (m.get_name() == "Main_main")
-        {
-          main_method_type = m.get_return_type();
-        }
-      }
-    }
-  }
-  // TODO: Should LLVM main retain int type
-  vp.define(op_type(INT32), "main", non);
-  // Define an entry basic block
+  // op_type main_method_type;
+  // for (CgenNode *_class : this->nds)
+  // {
+  //   // std::string class_name = get_name()->get_string();
+  //   if (_class->get_name()->get_string() == "Main")
+  //   {
+  //     // std::cerr << "Hello" << std::endl;
+  //     for (method_mine *m : _class->get_methods_in_class())
+  //     {
+  //       if (m->get_name() == "Main_main")
+  //       {
+  //         main_method_type = m->get_return_type();
+  //       }
+  //     }
+  //   }
+  // }
+  // // TODO: Should LLVM main retain int type
+  // vp.define(op_type(INT32), "main", non);
+  // // Define an entry basic block
 
-  vp.begin_block("entry");
-  // vp.init_constant("mainsudoobj", const_value(op_type("Main"), "mainsudoobj", false));
-  vp.call(null, main_method_type, "Main_main", true, non);
-  vp.ret(int_value(0));
+  // vp.begin_block("entry");
+  // // vp.init_constant("mainsudoobj", const_value(op_type("Main"), "mainsudoobj", false));
+  // vp.call(null, main_method_type, "Main_main", true, non);
+  // vp.ret(int_value(0));
 
-  vp.end_define();
+  // vp.end_define();
 #else
   operand ret = vp.call(null, op_type(INT32), "Main_main", true, non);
   // Lab1
@@ -614,18 +699,18 @@ void CgenNode::setup(int tag, int depth)
               << std::endl;
 
     std::cerr << "Attributes: " << std::endl;
-    for (attribute_mine m : this->get_attributes_in_class())
+    for (attribute_mine *m : this->get_attributes_in_class())
     {
-      std::cerr << m.get_name() << ": " << m.get_return_type().get_name() << std::endl;
+      std::cerr << m->get_name()->get_string() << ": " << m->get_return_type().get_name() << std::endl;
     }
     std::cerr << std::endl;
 
     std::cerr << "Methods: " << std::endl;
-    for (method_mine m : this->get_methods_in_class())
+    for (method_mine *m : this->get_methods_in_class())
     {
-      std::cerr << "Method Name: " << m.get_name() << std::endl;
+      std::cerr << "Method Name: " << m->get_name() << std::endl;
       std::cerr << "Parameters: " << std::endl;
-      for (operand n : m.get_params())
+      for (operand n : m->get_params())
       {
         std::cerr << n.get_name() << " : " << n.get_type().get_name() << std::endl;
       }
@@ -640,60 +725,37 @@ void CgenNode::setup(int tag, int depth)
 
   // class type define
   std::vector<op_type> class_attributes;
-  class_attributes.push_back(op_type(this->get_vtable_type_name(), 1));
-  for (attribute_mine attr : this->get_attributes_in_class())
-  {
-    op_type retain = attr.get_return_type();
-    if (retain.get_name() == "%int")
-      class_attributes.emplace_back(op_type(INT32));
-    else if (retain.get_name() == "%bool")
-      class_attributes.emplace_back(op_type(INT1));
-    else if (retain.get_name() == "%sbyte*")
-      // TODO: Not Machine agnostic, change later
-      class_attributes.emplace_back(op_type(INT8_PTR));
-    else
-      class_attributes.emplace_back(attr.get_return_type());
-  }
-  vp.type_define(this->get_type_name(), class_attributes);
 
   // vtable type define + const_values for vtable init
   std::vector<const_value> vtable_init_values;
   std::vector<op_type> vtable_methods;
 
-  // add tag
-  vtable_methods.emplace_back(op_type(INT32));
-  vtable_init_values.emplace_back(const_value(op_type(INT32), std::to_string(tag), true));
-
-  // add int size of obj (no. bytes)
-  vtable_methods.emplace_back(op_type(INT32));
-  const_value obj_size(op_type(INT32), "ptrtoint (" + op_type(this->get_type_name(), 1).get_name() + " getelementptr (%" + this->get_type_name() + ", " + op_type(this->get_type_name(), 1).get_name() + " null, i32 1) to i32)", true);
-  vtable_init_values.push_back(obj_size);
+  // method tracker
+  std::unordered_set<std::string> attributesSeen;
+  std::unordered_set<std::string> methodsSeen;
+  recurse_attributes_methods(this, class_attributes, vtable_methods, vtable_init_values, attributesSeen, methodsSeen);
 
   // add ptr to const char string
   op_arr_type arr_ptr_type(INT8, this->name->get_string().length() + 1);
-  const_value class_name(arr_ptr_type, "@" + this->name->get_string(), false);
-  vp.init_constant(this->name->get_string(), const_value(arr_ptr_type, this->name->get_string(), false));
-  // TODO: Do I need to add class names
-  // stringtable.add_string(this->name->get_string());
-  vtable_methods.emplace_back(op_type(INT8_PTR));
-  vtable_init_values.push_back(class_name);
+  const_value class_name(arr_ptr_type, "@" + this->name->get_string() + "_classname", false);
+  vp.init_constant(this->name->get_string() + "_classname", const_value(arr_ptr_type, this->name->get_string(), false));
 
-  for (method_mine m : this->get_methods_in_class())
-  {
-    std::vector<op_type> parameters;
-    for (operand o : m.get_params())
-    {
-      parameters.push_back(o.get_type());
-    }
-    op_func_type func_type(m.get_return_type(), parameters);
-    vtable_methods.emplace_back(func_type);
-    vtable_init_values.emplace_back(const_value(func_type, "@" + m.get_name(), true));
-  }
-  if (vtable_methods.empty())
-  {
-    vtable_methods.emplace_back(op_type());
-    vtable_init_values.emplace_back(const_value(op_type(), "null", false));
-  }
+  vtable_methods.insert(vtable_methods.begin(), op_type(INT8_PTR));
+  vtable_init_values.insert(vtable_init_values.begin(), class_name);
+
+  // class_attributes.emplace_back(op_type(this->parent->get_string(), 1));
+  class_attributes.insert(class_attributes.begin(), op_type(this->get_vtable_type_name(), 1));
+
+  // add int size of obj (no. bytes)
+  vtable_methods.insert(vtable_methods.begin(), op_type(INT32));
+  const_value obj_size(op_type(INT32), "ptrtoint (" + op_type(this->get_type_name(), 1).get_name() + " getelementptr (%" + this->get_type_name() + ", " + op_type(this->get_type_name(), 1).get_name() + " null, i32 1) to i32)", true);
+  vtable_init_values.insert(vtable_init_values.begin(), obj_size);
+
+  // add tag
+  vtable_methods.insert(vtable_methods.begin(), op_type(INT32));
+  vtable_init_values.insert(vtable_init_values.begin(), const_value(op_type(INT32), std::to_string(tag), true));
+
+  vp.type_define(this->get_type_name(), class_attributes);
   vp.type_define(this->get_vtable_type_name(), vtable_methods);
 
   // vtable prototype
@@ -701,6 +763,221 @@ void CgenNode::setup(int tag, int depth)
   vp.init_struct_constant(vtab_const_name, vtable_methods, vtable_init_values);
 
 #endif
+}
+
+void CgenNode::recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_value, std::unordered_set<std::string> &attributesSeen, std::unordered_set<std::string> &methodsSeen)
+{
+  if (cls->get_name()->get_string() == "_no_class")
+  {
+    return;
+  }
+  recurse_attributes_methods(cls->get_parentNode(), attributes, methods, init_value, attributesSeen, methodsSeen);
+
+  for (attribute_mine *attr : cls->get_attributes_in_class())
+  {
+    unsigned long int sizeLast = attributesSeen.size();
+    attributesSeen.insert(attr->get_name()->get_string());
+    if (attributesSeen.size() != sizeLast)
+    {
+      op_type retain = attr->get_return_type();
+      if (retain.get_name() == "%int")
+        attributes.emplace_back(op_type(INT32));
+      else if (retain.get_name() == "%bool")
+        attributes.emplace_back(op_type(INT1));
+      else if (retain.get_name() == "%sbyte*")
+        // TODO: Not Machine agnostic, change later
+        attributes.emplace_back(op_type(INT8_PTR));
+      else
+        attributes.emplace_back(attr->get_return_type());
+    }
+  }
+
+  // search through the parent types to see
+  //  if there are any matching method signatures
+  // if matching : skip ; else: add to methods
+  for (long unsigned int i = 0; i < cls->get_methods_in_class().size(); i++)
+  {
+    std::vector<method_mine *> m = cls->get_methods_in_class();
+    long unsigned int sizeLast = methodsSeen.size();
+    methodsSeen.insert(strip_method_name(m[i]->get_name()));
+    // if overloaded / virtual function found
+
+    std::vector<op_type> parameters;
+    for (operand o : m[i]->get_params())
+    {
+      parameters.push_back(o.get_type());
+    }
+    op_func_type func_type(m[i]->get_return_type(), parameters);
+
+    // method not seen
+    if (methodsSeen.size() != sizeLast)
+    {
+      methods.push_back(func_type);
+      if (strip_method_name(m[i]->get_name()) == "main")
+      {
+        init_value.emplace_back(const_value(func_type, "@" + strip_method_name(m[i]->get_name()), true));
+      }
+      else
+      {
+        init_value.emplace_back(const_value(func_type, "@" + m[i]->get_name(), true));
+      }
+    }
+    else
+    {
+      // method seen
+      // find the function with mathcing name and insert to replace
+      for (long unsigned int j = 0; j < init_value.size() - 1; j++)
+      {
+        std::string prefix = init_value[j].get_value();
+        if (strip_method_name(init_value[j].get_name()) == strip_method_name(m[i]->get_name()))
+        {
+          methods[j] = func_type;
+          init_value[j] = (const_value(func_type, "@" + m[i]->get_name(), true));
+        }
+      }
+    }
+  }
+
+  // for (method_mine *m : cls->get_methods_in_class())
+  // {
+  //   long unsigned int sizeLast = methodsSeen.size();
+  //   methodsSeen.insert(strip_method_name(cls->get_name()->get_string(), m->get_name()));
+  //   // if overloaded / virtual function found
+  //   //  TODO: add logic to deal with overloaded function
+  //   if (methodsSeen.size() != sizeLast)
+  //   {
+  //     std::vector<op_type> parameters;
+  //     for (operand o : m->get_params())
+  //     {
+  //       parameters.push_back(o.get_type());
+  //     }
+  //     op_func_type func_type(m->get_return_type(), parameters);
+  //     methods.push_back(func_type);
+  //     init_value.emplace_back(const_value(func_type, "@" + m->get_name(), true));
+  //   }
+  //   else
+  //   {
+  //     // find the function with mathcing name and insert to replace
+  //     for (long unsigned int i = 0; i < methods.size() - 1; ++i)
+  //     {
+  //       std::string prefix = cls->get_name()->get_string();
+  //       std::cerr << strip_method_name(prefix, methods[i].get_name()) << std::endl;
+  //       std::cerr << methods[i].get_name() << std::endl;
+  //       // std::cerr << strip_method_name(prefix, m->get_name()) << std::endl;
+  //       if (strip_method_name(prefix, methods[i].get_name()) == strip_method_name(prefix, m->get_name()))
+  //       {
+  //         std::cerr << "Found " << methods[i].get_name();
+  //         init_value[i].set_name("@" + m->get_name());
+  //         std::vector<op_type> parameters;
+  //         for (operand o : m->get_params())
+  //         {
+  //           parameters.push_back(o.get_type());
+  //         }
+  //         op_func_type func_type(m->get_return_type(), parameters);
+  //         methods[i] = func_type;
+  //         init_value[i] = (const_value(func_type, "@" + m->get_name(), true));
+  //       }
+  //     }
+  //   }
+  // }
+}
+
+// Go through each node until you reach absolute parent
+// add methods and attributes along the way
+// DEPRECATED
+void CgenNode::add_parent_attributes_methods(std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_values)
+{
+  ValuePrinter vp(*this->ct_stream);
+  CgenNode *explore = this;
+
+  std::unordered_set<std::string> attributes_name;
+  long unsigned int sizeLasta = 0;
+  std::unordered_set<std::string> methods_name;
+  long unsigned int sizeLast = 0;
+
+  //  Current checking for function overloading is very primitive
+  //  Currently only checking if the name is the same but should check
+  //  if entire signature of method is same (parameters mainly)
+
+  // Inefficient parsing (twice through list of all parents)
+  // However produces prettier LLVM IR
+
+  while (explore->get_name()->get_string() != "_no_class")
+  {
+    // add attributes from most local to parents
+    for (attribute_mine *attr : explore->get_attributes_in_class())
+    {
+      attributes_name.insert(attr->get_name()->get_string());
+      if (attributes_name.size() != sizeLasta)
+      {
+        op_type retain = attr->get_return_type();
+        if (retain.get_name() == "%int")
+          attributes.emplace_back(op_type(INT32));
+        else if (retain.get_name() == "%bool")
+          attributes.emplace_back(op_type(INT1));
+        else if (retain.get_name() == "%sbyte*")
+          attributes.emplace_back(op_type(INT8_PTR));
+        else
+          attributes.emplace_back(attr->get_return_type());
+        // explore->add_attribute(attr->get_name(), retain);
+        sizeLasta++;
+      }
+    }
+
+    // search through the parent types to see
+    //  if there are any matching method signatures
+    // if matching : skip ; else: add to methods
+    std::vector<op_type> class_methods;
+    std::vector<const_value> class_methods_init;
+    for (method_mine *m : explore->get_methods_in_class())
+    {
+      methods_name.insert(strip_method_name(m->get_name()));
+      // if overloaded / virtual function found
+      //  TODO: add logic to deal with overloaded function
+      if (methods_name.size() != sizeLast)
+      {
+        std::vector<op_type> parameters;
+        for (operand o : m->get_params())
+        {
+          parameters.push_back(o.get_type());
+        }
+        op_func_type func_type(m->get_return_type(), parameters);
+        class_methods.insert(class_methods.begin(), func_type);
+        class_methods_init.insert(class_methods_init.begin(), const_value(func_type, "@" + m->get_name(), true));
+        // explore->add_method(m->get_name(), m->get_return_type(), m->get_params(), m->get_expression());
+        sizeLast++;
+      }
+      else
+      {
+        std::cerr << "HERE " << m->get_name() << std::endl;
+        // find the function with mathcing name and insert to replace
+        for (long unsigned int i = 0; i < methods.size() - 1; ++i)
+        {
+          std::string prefix = explore->get_name()->get_string();
+          if (strip_method_name(methods[i].get_name()) == strip_method_name(m->get_name()))
+          {
+
+            init_values[i].set_name("@" + m->get_name());
+          }
+        }
+      }
+    }
+    for (auto &element : class_methods)
+    {
+      methods.insert(methods.begin(), element);
+    }
+    for (auto &element : class_methods_init)
+    {
+      init_values.insert(init_values.begin(), element);
+    }
+
+    explore = explore->get_parentNode();
+  }
+}
+
+std::string CgenNode::strip_method_name(std::string method_name)
+{
+  return method_name.substr(method_name.find("_") + 1);
 }
 
 #ifdef LAB2
@@ -752,33 +1029,39 @@ void CgenNode::layout_features()
 void CgenNode::code_class()
 {
   // No code generation for basic classes. The runtime will handle that.
+  // code methods for basic classes' children classes
+  CgenEnvironment env(*ct_stream, this);
   if (basic())
   {
+    for (CgenNode *n : this->get_children())
+    {
+      n->code_init_function(&env);
+    }
     return;
   }
-  // TODO: add code here
-  CgenEnvironment env(*ct_stream, this);
   this->code_init_function(&env);
+  for (CgenNode *n : this->get_children())
+  {
+    n->code_init_function(&env);
+  }
 }
 
 void CgenNode::code_init_function(CgenEnvironment *env)
 {
   // TODO: add code here
   ValuePrinter vp(*env->cur_stream);
-  std::cerr << this->name->get_string() << std::endl;
-  for (method_mine a : this->get_methods_in_class())
-  {
-    std::cerr << a.get_return_type().get_name() << std::endl;
-
-    vp.define(a.get_return_type(), a.get_name(), a.get_params());
-    operand finalExpression = a.get_expression()->code(env);
-    vp.ret(finalExpression);
-    vp.end_define();
-  }
-  // for (CgenNode *a : this->get_children())
+  // Set up class variables here
+  std::cerr << "CODE_INIT_FUNCTION" << std::endl;
+  // for (attribute_mine *a : this->get_attributes_in_class())
   // {
-  //   a->get_name();
+  //   operand *toStore = new operand(a->get_return_type(), a->get_return_type().get_name());
+  //   std::string rtt_name = a->get_return_type().get_name();
+  //   env->add_binding(a->get_name(), toStore);
   // }
+  for (Feature f : this->get_features())
+  {
+    f->code(env);
+  }
 }
 
 #else
@@ -855,7 +1138,7 @@ void method_class::code(CgenEnvironment *env)
   ValuePrinter vp(*env->cur_stream);
 
   std::vector<operand> null;
-  vp.define(op_type(INT32), name->get_string(), null);
+  vp.define(op_type(return_type->get_string()), name->get_string(), null);
 
   // change in later labs
   //  vp.begin_block(name->get_string());
@@ -863,6 +1146,11 @@ void method_class::code(CgenEnvironment *env)
 
   // code() called with method's expression
   operand finalExpression = expr->code(env);
+  if (finalExpression.get_name() == "%self")
+  {
+    finalExpression = vp.alloca_mem(op_type(return_type->get_string()));
+    finalExpression = vp.load(op_type(return_type->get_string()), finalExpression);
+  }
   vp.ret(finalExpression);
 
   vp.end_define();
@@ -882,11 +1170,59 @@ operand assign_class::code(CgenEnvironment *env)
   // store the temp into the ptr to the name
   // return the value of the resolved expr
 
-  // Find symbol within env table
-  operand findSym = *env->find_in_scopes(name);
-  operand store = vp.getelementptr(findSym.get_type().get_deref_type(), findSym, int_value(0), findSym.get_type());
+  operand findSym;
+  operand store;
   operand value = expr->code(env);
+
+  // Find symbol within env table
+  std::cerr << name->get_string() << std::endl;
+  // TODO: SHOULD NOT DO THIS HERE
+  // if (env->find_in_scopes(name) == nullptr)
+  // {
+  //   // Not found
+  //   // Means class definition + malloc needed
+  //   std::cerr << value.get_type().get_name() << std::endl;
+  //   findSym = vp.malloc_mem(value);
+  //   env->add_binding(name, &findSym);
+  // }
+  // else
+  // {
+  //   findSym = *env->find_in_scopes(name);
+  // }
+  if (value.get_typename() == "i32")
+  {
+    store = vp.alloca_mem(INT32);
+  }
+  else if (value.get_typename() == "i1")
+  {
+    store = vp.alloca_mem(INT1);
+  }
+  else
+  {
+    // TODO: Do I need alloc here?
+    // store = vp.alloca_mem(value.get_type());
+    op_type elem_type;
+    findSym = *env->find_in_scopes(name);
+    std::cerr << findSym.get_typename() << std::endl;
+
+    if (findSym.get_type().is_ptr())
+    {
+      elem_type = findSym.get_type().get_deref_type();
+    }
+    else
+    {
+      elem_type = findSym.get_type();
+    }
+
+    store = vp.getelementptr(elem_type, findSym, int_value(0), findSym.get_type());
+  }
+
   vp.store(value, store);
+
+  // add to new scope
+  operand *yo = new operand(value);
+  env->open_scope();
+  env->add_binding(name, yo);
 
   return value;
 }
@@ -1237,11 +1573,28 @@ operand object_class::code(CgenEnvironment *env)
   // load value
   //  return correct operand / value
   ValuePrinter vp(*env->cur_stream);
+  operand oper;
+  std::string obj_name = name->get_string();
+  if (obj_name == "self")
+  {
+    // oper = vp.alloca_mem(op_type(env->get_class()->get_type_name()));
+    oper = operand(op_type(env->get_class()->get_type_name()), "self");
+  }
+  else
+  {
+    oper = *env->find_in_scopes(name);
+    if (this->get_type()->get_string() != "Int" && this->get_type()->get_string() != "Bool")
+    {
+      op_type elem_type;
+      // current error
+      elem_type = oper.get_type().get_ptr_type();
+      int_value zero(0);
+      operand temp_hold = vp.getelementptr(oper.get_type(), oper, zero, elem_type);
+      oper = vp.load(elem_type, temp_hold);
+    }
+  }
 
-  operand op = *env->find_in_scopes(name);
-  operand ld = vp.load(op.get_type().get_deref_type(), op);
-
-  return ld;
+  return oper;
 }
 
 operand no_expr_class::code(CgenEnvironment *env)
@@ -1278,8 +1631,8 @@ operand string_const_class::code(CgenEnvironment *env)
 #ifndef LAB2
   assert(0 && "Unsupported case for phase 1");
 #else
-  // TODO: add code here and replace `return operand()`
-  return operand();
+  operand ret = operand(op_type("String"), token->get_string());
+  return ret;
 #endif
 }
 
@@ -1291,7 +1644,64 @@ operand dispatch_class::code(CgenEnvironment *env)
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return operand()`
-  return operand();
+
+  // expr - body of function
+  // name - function to be called name
+  // acual - list of parameters
+
+  ValuePrinter vp(*env->cur_stream);
+
+  operand fin = expr->code(env);
+  operand method_self;
+
+  // std::cerr << "YO BOOTY HOLE " << fin.get_name() << std::endl;
+  // std::cerr << "YO BOOTY HOLE #2" << fin.get_typename() << std::endl;
+  // // this is a static dispatch
+  // if(fin.get_name() == "%self"){
+  //   operand temp_hold = vp.alloca_mem(op_type(fin.get_typename()));
+  //   method_self = temp_hold;
+  // }else{
+  //   method_self = fin;
+  // }
+
+  std::string functionName = name->get_string();
+  std::vector<op_type> arg_types;
+  std::vector<operand> args;
+  op_type result_type = fin.get_type();
+
+  // static dispatch
+  //"this" is passed to every object
+  method_self = vp.alloca_mem(op_type(env->get_class()->get_type_name()));
+
+  args.push_back(method_self);
+  arg_types.emplace_back(method_self.get_type());
+  // actual contains parameters of function dispatch
+  int iter = 0;
+  while (actual->more(iter))
+  {
+    operand hold = actual->nth(iter)->code(env);
+    args.emplace_back(hold);
+    arg_types.emplace_back(hold.get_type());
+    iter++;
+  }
+  operand store = vp.alloca_mem(result_type);
+
+  vp.store(vp.call(arg_types, result_type, env->get_class()->get_name()->get_string() + "_" + functionName, true, args), store);
+  // operand almost = vp.call(arg_types, result_type, functionName, true, args);
+
+  /*  Static Dispatch   */
+  // alloc mem for obj ptr of caller class type
+
+  /*  Dynamic Dispatch   */
+  // get addr for mem of caller obj
+
+  // get Vtable ptr from obj being called on
+  // load Vtable obj
+  // get ptr to function from vtable with index
+  // load the function ptr to vtmp
+  // call vtmp
+
+  return store;
 #endif
 }
 
@@ -1346,8 +1756,6 @@ void method_class::layout_feature(CgenNode *cls)
               << std::endl;
   }
 
-  ValuePrinter vp(*(cls->get_ostream()));
-
   // Get return type
   op_type returnType;
   std::string returnTypeString = this->get_return_type()->get_string();
@@ -1399,6 +1807,16 @@ void method_class::layout_feature(CgenNode *cls)
   // vp.declare(returnType, cls->get_name()->get_string() + "_" + this->name->get_string(), params);
   cls->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters, this->expr);
 
+  // add method to class's children
+  // for (CgenNode *a : cls->get_children())
+  // {
+  //   a->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters, this->expr);
+  // }
+
+  // // encode the method
+  // CgenEnvironment env(*(cls->get_ostream()), cls);
+  // expr->code(&env);
+
 #endif
 }
 
@@ -1441,7 +1859,12 @@ void attr_class::layout_feature(CgenNode *cls)
   else
     resolve_type = op_type(typeName);
 
-  cls->add_attribute(this->name->get_string(), resolve_type);
+  cls->add_attribute(this->name, resolve_type, init);
+  // add attribute to class's children
+  for (CgenNode *a : cls->get_children())
+  {
+    a->add_attribute(this->name, resolve_type, init);
+  }
 #endif
 }
 
@@ -1451,6 +1874,19 @@ void attr_class::code(CgenEnvironment *env)
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here
+  // do alloc here
+  ValuePrinter vp(*env->cur_stream);
+  std::cerr << name->get_string() << std::endl;
+  op_type alloc_type = op_type(type_decl->get_string());
+  if (type_decl->get_string() == "Int")
+  {
+    alloc_type = op_type(INT32);
+  }
+  else if (type_decl->get_string() == "Bool")
+  {
+    alloc_type = op_type(INT1);
+  }
+  env->add_binding(name, new operand(init->code(env)));
 #endif
 }
 
@@ -1600,8 +2036,27 @@ void bool_const_class::make_alloca(CgenEnvironment *env)
 void object_class::make_alloca(CgenEnvironment *env)
 {
   if (cgen_debug)
-    std::cerr << "Object" << std::endl;
-
+    std::cerr << "Object alloca" << std::endl;
+  ValuePrinter vp(*env->cur_stream);
+  operand *check = env->find_in_scopes(name);
+  if (check->get_typename() == "i32")
+  {
+    Entry *hold = new Entry(check->get_name(), name->get_index());
+    Symbol temp0 = hold;
+    int_const_class temp(temp0);
+    temp.make_alloca(env);
+  }
+  else if (check->get_typename() == "i1")
+  {
+    Entry *hold = new Entry(check->get_name(), name->get_index());
+    Symbol temp0 = hold;
+    bool_const_class temp(temp0);
+    temp.make_alloca(env);
+  }
+  else
+  {
+    vp.alloca_mem(op_type(name->get_string()));
+  }
   // TODO: add code here
 }
 
@@ -1708,6 +2163,9 @@ void attr_class::make_alloca(CgenEnvironment *env)
 operand conform(operand src, op_type type, CgenEnvironment *env)
 {
   // TODO: add code here
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  // vp.alloca_mem(type);
+  // src.set_type(type);
+  return vp.bitcast(src, type);
 }
 #endif

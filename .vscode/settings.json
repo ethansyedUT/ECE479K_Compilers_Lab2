@@ -50,6 +50,10 @@
         "unordered_map": "cpp",
         "variant": "cpp",
         "vector": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "unordered_set": "cpp",
+        "__assert": "cpp",
+        "__availability": "cpp",
+        "system_error": "cpp"
     }
 }
