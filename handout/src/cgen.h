@@ -24,18 +24,22 @@ class method_mine
 {
 public:
   method_mine() = default;
-  method_mine(std::string nm, op_type rt_type, std::vector<operand> parameters, Expression express)
+  method_mine(Symbol nm, op_type rt_type, std::vector<operand> parameters, Expression express)
       : name(nm), returnType(rt_type), params(parameters), expr(express) {}
-  std::string get_name() { return name; }
+  Symbol get_name() { return name; }
   op_type get_return_type() { return returnType; }
   std::vector<operand> get_params() { return params; }
   Expression get_expression() { return expr; }
+  void set_class_origin(CgenNode *n) { class_origin = n; }
+  CgenNode *get_class_origin() { return class_origin; }
 
 private:
-  std::string name;
+  Symbol name;
   op_type returnType;
   std::vector<operand> params;
   Expression expr;
+
+  CgenNode *class_origin;
 };
 
 class attribute_mine
@@ -111,12 +115,26 @@ public:
     constant_counter += incr;
     return prefix + suffix;
   }
+  std::vector<CgenNode *> get_classes() { return nds; }
+  std::vector<CgenNode *> get_special_classes() { return special_nds; }
+  void add_constant(std::string global_name, std::string local_name)
+  {
+    const_strings.emplace(local_name, global_name);
+  }
+  std::string *find_const(std::string local_name)
+  {
+    auto find = const_strings.find(local_name);
+    return find == const_strings.end() ? nullptr : &find->second;
+  }
 
 private:
   // Class lists and current class tag
   std::vector<CgenNode *> nds, special_nds;
   int current_tag;
   int constant_counter;
+
+  // holds constant strings
+  std::unordered_map<std::string, std::string> const_strings;
 
 public:
   // The ostream where we are emitting code
@@ -174,6 +192,7 @@ public:
   void add_parent_attributes_methods(std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_values);
   void recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &attributes, std::vector<op_type> &methods, std::vector<const_value> &init_values, std::unordered_set<std::string> &attributesSeen, std::unordered_set<std::string> &methodsSeen);
   std::string strip_method_name(std::string method_name);
+  method_mine *find_method_class_init(std::string method_name);
   // Class setup. You need to write the body of this function.
   void setup(int tag, int depth);
 #ifdef LAB2
@@ -189,7 +208,7 @@ public:
   // My Methods
   CgenNode *get_parentNode() { return parentnd; }
   std::ostream *get_ostream() { return ct_stream; }
-  void add_method(std::string nm, op_type rt, std::vector<operand> parameters, Expression expr)
+  void add_method(Symbol nm, op_type rt, std::vector<operand> parameters, Expression expr)
   {
     method_mine *temp = new method_mine(nm, rt, parameters, expr);
     methods_in_class.emplace_back(temp);
@@ -218,7 +237,7 @@ private:
   std::vector<method_mine *> methods_in_class;
   std::vector<attribute_mine *> attributes_in_class;
 
-  // Add DS id_table for each class to ensure non-dual func redef?
+  //  // Add DS id_table for each class to ensure non-dual func redef?
 };
 
 // CgenEnvironment provides the environment for code generation of a method.
@@ -237,8 +256,8 @@ public:
       : var_table(), cur_class(cur_class), block_count(0), tmp_count(0),
         ok_count(0), cur_stream(&stream)
   {
-    var_table.enterscope();
-    // TODO: Walk here for variables???
+    // var_table.enterscope();
+    //  TODO: Walk here for variables???
   }
 
   // fresh name generation functions
@@ -266,6 +285,28 @@ public:
   void close_scope() { var_table.exitscope(); }
 
   // TODO: Add more functions as necessary.
+  void dump_vartable()
+  {
+    var_table.dump(*cur_stream);
+  }
+  void insert_scoped(std::string key, operand *value)
+  {
+    scoped.emplace(key, value);
+  }
+  operand *find_scoped(std::string key)
+  {
+    auto it = scoped.find(key);
+    if (it != scoped.end())
+    {
+      // Key found, return the corresponding value
+      return it->second;
+    }
+    else
+    {
+      // Key not found, return a default-constructed Symbol
+      return nullptr;
+    }
+  }
 
 private:
   cool::SymbolTable<operand>
@@ -273,6 +314,9 @@ private:
   CgenNode *cur_class;
   int block_count, tmp_count, ok_count; // Keep counters for unique name
                                         // generation in the current method
+
+  // personal ds to find self
+  std::unordered_map<std::string, operand *> scoped;
 
 public:
   std::ostream *cur_stream;

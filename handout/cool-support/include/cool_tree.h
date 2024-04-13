@@ -223,9 +223,6 @@ public:
   Class_ copy_Class_();
   void dump(std::ostream &stream, int n);
 
-  // ADDED LAB1
-  Features get_features() { return features; }
-
 #ifdef Class__SHARED_EXTRAS
   Class__SHARED_EXTRAS
 #endif

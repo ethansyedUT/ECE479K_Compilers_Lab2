@@ -332,14 +332,14 @@ void CgenClassTable::setup_external_functions()
 
   /* Object external methods */
   // external %Object *Object_new(void)
-  op_type Object_ptr("Object", 1), string("String"), object("Object"), string_ptr("String", 1);
+  op_type Object_ptr("Object", 1), string("String", 1), object("Object"), string_ptr("String", 1);
   std::vector<op_type> new_object_args;
-  vp.declare(*ct_stream, object, "Object_new", new_object_args);
+  vp.declare(*ct_stream, Object_ptr, "Object_new", new_object_args);
 
   // external %Object *Object_abort(Object *self)
   std::vector<op_type> object_abort_args;
   object_abort_args.push_back(Object_ptr);
-  vp.declare(*ct_stream, object, "Object_abort", object_abort_args);
+  vp.declare(*ct_stream, Object_ptr, "Object_abort", object_abort_args);
 
   // external %String *Object_type_name(Object *self)
   std::vector<op_type> type_name_args;
@@ -349,7 +349,7 @@ void CgenClassTable::setup_external_functions()
   // external %Object *Object_copy(Object *self)
   std::vector<op_type> copy_args;
   copy_args.push_back(Object_ptr);
-  vp.declare(*ct_stream, object, "Object_copy", copy_args);
+  vp.declare(*ct_stream, Object_ptr, "Object_copy", copy_args);
 
   /* Int external methods */
   // external %Int *Int_new(void)
@@ -367,7 +367,7 @@ void CgenClassTable::setup_external_functions()
   // external %Bool *Bool_new(void)
   op_type Bool_ptr("Bool", 1), bool_type(INT1);
   std::vector<op_type> new_bool_args;
-  vp.declare(*ct_stream, bool_type, "Bool_new", new_bool_args);
+  vp.declare(*ct_stream, Bool_ptr, "Bool_new", new_bool_args);
 
   // external void Bool_init(Bool *self, bool b)
   std::vector<op_type> init_bool_args;
@@ -388,7 +388,7 @@ void CgenClassTable::setup_external_functions()
   // external %String *String_concat(String *self, String *s)
   std::vector<op_type> concat_args;
   concat_args.push_back(string_ptr);
-  concat_args.push_back(string);
+  concat_args.push_back(string_ptr);
   vp.declare(*ct_stream, string, "String_concat", concat_args);
 
   // external %String *String_substr(String *self, int i, int l)
@@ -404,14 +404,14 @@ void CgenClassTable::setup_external_functions()
   op_type IO("IO"), IO_ptr("IO", 1);
   std::vector<op_type> out_string_args;
   out_string_args.push_back(IO_ptr);
-  out_string_args.push_back(string);
-  vp.declare(*ct_stream, IO, "IO_out_string", out_string_args);
+  out_string_args.push_back(string_ptr);
+  vp.declare(*ct_stream, IO_ptr, "IO_out_string", out_string_args);
 
   // external %IO *IO_out_int(IO *self, int x)
   std::vector<op_type> out_int_args;
   out_int_args.push_back(IO_ptr);
   out_int_args.push_back(i32_type);
-  vp.declare(*ct_stream, IO, "IO_out_int", out_int_args);
+  vp.declare(*ct_stream, IO_ptr, "IO_out_int", out_int_args);
 
   // external %String *IO_in_string(IO *self)
   std::vector<op_type> in_string_args;
@@ -509,8 +509,8 @@ void CgenClassTable::code_main()
   // vp.init_constant(".str", str);
 
   ValuePrinter vp(*ct_stream);
-  std::vector<operand> non;
-  std::vector<op_type> null;
+  std::vector<operand> main_args;
+  std::vector<op_type> main_arg_types;
 
   // Call Main_main(). This returns int for phase 1, Object for phase 2
 
@@ -534,31 +534,36 @@ void CgenClassTable::code_main()
 
   // find main method and get
   // op_type main_method_type;
-  // for (CgenNode *_class : this->nds)
-  // {
-  //   // std::string class_name = get_name()->get_string();
-  //   if (_class->get_name()->get_string() == "Main")
-  //   {
-  //     // std::cerr << "Hello" << std::endl;
-  //     for (method_mine *m : _class->get_methods_in_class())
-  //     {
-  //       if (m->get_name() == "Main_main")
-  //       {
-  //         main_method_type = m->get_return_type();
-  //       }
-  //     }
-  //   }
-  // }
-  // // TODO: Should LLVM main retain int type
-  // vp.define(op_type(INT32), "main", non);
+
+  vp.define(op_type(INT32), "main", main_args);
   // // Define an entry basic block
 
-  // vp.begin_block("entry");
+  vp.begin_block("entry");
   // // vp.init_constant("mainsudoobj", const_value(op_type("Main"), "mainsudoobj", false));
-  // vp.call(null, main_method_type, "Main_main", true, non);
-  // vp.ret(int_value(0));
+  operand hold = vp.alloca_mem(op_type("Main"));
+  main_args.push_back(hold);
+  main_arg_types.push_back(hold.get_type());
 
-  // vp.end_define();
+  op_type main_type;
+  // get main type
+  for (CgenNode *n : this->get_classes())
+  {
+    if (n->get_name()->get_string() == "Main")
+    {
+      for (method_mine *m : n->get_methods_in_class())
+      {
+        if (m->get_name()->get_string() == "Main_main")
+        {
+          main_type = m->get_return_type();
+        }
+      }
+    }
+  }
+
+  vp.call(main_arg_types, main_type, "Main_main", true, main_args);
+  vp.ret(int_value(0));
+
+  vp.end_define();
 #else
   operand ret = vp.call(null, op_type(INT32), "Main_main", true, non);
   // Lab1
@@ -646,6 +651,8 @@ void StringEntry::code_def(std::ostream &s, CgenClassTable *ct)
   {
   }
 
+  // add values to string table here to be found later
+
   // TODO: add code here
   ValuePrinter vp(s);
 
@@ -668,6 +675,11 @@ void StringEntry::code_def(std::ostream &s, CgenClassTable *ct)
   init_values.emplace_back(string_name);
 
   vp.init_struct_constant(s_name, fields, init_values);
+
+  // add to string table
+  stringtable.add_string(this->get_string());
+  // add to classtable constants to get lookup global var
+  ct->add_constant(const_struct_name, str);
 
 #endif
 }
@@ -708,7 +720,7 @@ void CgenNode::setup(int tag, int depth)
     std::cerr << "Methods: " << std::endl;
     for (method_mine *m : this->get_methods_in_class())
     {
-      std::cerr << "Method Name: " << m->get_name() << std::endl;
+      std::cerr << "Method Name: " << m->get_name()->get_string() << std::endl;
       std::cerr << "Parameters: " << std::endl;
       for (operand n : m->get_params())
       {
@@ -739,6 +751,7 @@ void CgenNode::setup(int tag, int depth)
   op_arr_type arr_ptr_type(INT8, this->name->get_string().length() + 1);
   const_value class_name(arr_ptr_type, "@" + this->name->get_string() + "_classname", false);
   vp.init_constant(this->name->get_string() + "_classname", const_value(arr_ptr_type, this->name->get_string(), false));
+  stringtable.add_string(this->name->get_string());
 
   vtable_methods.insert(vtable_methods.begin(), op_type(INT8_PTR));
   vtable_init_values.insert(vtable_init_values.begin(), class_name);
@@ -799,7 +812,7 @@ void CgenNode::recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &a
   {
     std::vector<method_mine *> m = cls->get_methods_in_class();
     long unsigned int sizeLast = methodsSeen.size();
-    methodsSeen.insert(strip_method_name(m[i]->get_name()));
+    methodsSeen.insert(strip_method_name(m[i]->get_name()->get_string()));
     // if overloaded / virtual function found
 
     std::vector<op_type> parameters;
@@ -813,14 +826,7 @@ void CgenNode::recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &a
     if (methodsSeen.size() != sizeLast)
     {
       methods.push_back(func_type);
-      if (strip_method_name(m[i]->get_name()) == "main")
-      {
-        init_value.emplace_back(const_value(func_type, "@" + strip_method_name(m[i]->get_name()), true));
-      }
-      else
-      {
-        init_value.emplace_back(const_value(func_type, "@" + m[i]->get_name(), true));
-      }
+      init_value.emplace_back(const_value(func_type, "@" + m[i]->get_name()->get_string(), true));
     }
     else
     {
@@ -829,57 +835,14 @@ void CgenNode::recurse_attributes_methods(CgenNode *cls, std::vector<op_type> &a
       for (long unsigned int j = 0; j < init_value.size() - 1; j++)
       {
         std::string prefix = init_value[j].get_value();
-        if (strip_method_name(init_value[j].get_name()) == strip_method_name(m[i]->get_name()))
+        if (strip_method_name(init_value[j].get_name()) == strip_method_name(m[i]->get_name()->get_string()))
         {
           methods[j] = func_type;
-          init_value[j] = (const_value(func_type, "@" + m[i]->get_name(), true));
+          init_value[j] = (const_value(func_type, "@" + m[i]->get_name()->get_string(), true));
         }
       }
     }
   }
-
-  // for (method_mine *m : cls->get_methods_in_class())
-  // {
-  //   long unsigned int sizeLast = methodsSeen.size();
-  //   methodsSeen.insert(strip_method_name(cls->get_name()->get_string(), m->get_name()));
-  //   // if overloaded / virtual function found
-  //   //  TODO: add logic to deal with overloaded function
-  //   if (methodsSeen.size() != sizeLast)
-  //   {
-  //     std::vector<op_type> parameters;
-  //     for (operand o : m->get_params())
-  //     {
-  //       parameters.push_back(o.get_type());
-  //     }
-  //     op_func_type func_type(m->get_return_type(), parameters);
-  //     methods.push_back(func_type);
-  //     init_value.emplace_back(const_value(func_type, "@" + m->get_name(), true));
-  //   }
-  //   else
-  //   {
-  //     // find the function with mathcing name and insert to replace
-  //     for (long unsigned int i = 0; i < methods.size() - 1; ++i)
-  //     {
-  //       std::string prefix = cls->get_name()->get_string();
-  //       std::cerr << strip_method_name(prefix, methods[i].get_name()) << std::endl;
-  //       std::cerr << methods[i].get_name() << std::endl;
-  //       // std::cerr << strip_method_name(prefix, m->get_name()) << std::endl;
-  //       if (strip_method_name(prefix, methods[i].get_name()) == strip_method_name(prefix, m->get_name()))
-  //       {
-  //         std::cerr << "Found " << methods[i].get_name();
-  //         init_value[i].set_name("@" + m->get_name());
-  //         std::vector<op_type> parameters;
-  //         for (operand o : m->get_params())
-  //         {
-  //           parameters.push_back(o.get_type());
-  //         }
-  //         op_func_type func_type(m->get_return_type(), parameters);
-  //         methods[i] = func_type;
-  //         init_value[i] = (const_value(func_type, "@" + m->get_name(), true));
-  //       }
-  //     }
-  //   }
-  // }
 }
 
 // Go through each node until you reach absolute parent
@@ -931,7 +894,7 @@ void CgenNode::add_parent_attributes_methods(std::vector<op_type> &attributes, s
     std::vector<const_value> class_methods_init;
     for (method_mine *m : explore->get_methods_in_class())
     {
-      methods_name.insert(strip_method_name(m->get_name()));
+      methods_name.insert(strip_method_name(m->get_name()->get_string()));
       // if overloaded / virtual function found
       //  TODO: add logic to deal with overloaded function
       if (methods_name.size() != sizeLast)
@@ -943,7 +906,7 @@ void CgenNode::add_parent_attributes_methods(std::vector<op_type> &attributes, s
         }
         op_func_type func_type(m->get_return_type(), parameters);
         class_methods.insert(class_methods.begin(), func_type);
-        class_methods_init.insert(class_methods_init.begin(), const_value(func_type, "@" + m->get_name(), true));
+        class_methods_init.insert(class_methods_init.begin(), const_value(func_type, "@" + m->get_name()->get_string(), true));
         // explore->add_method(m->get_name(), m->get_return_type(), m->get_params(), m->get_expression());
         sizeLast++;
       }
@@ -954,10 +917,10 @@ void CgenNode::add_parent_attributes_methods(std::vector<op_type> &attributes, s
         for (long unsigned int i = 0; i < methods.size() - 1; ++i)
         {
           std::string prefix = explore->get_name()->get_string();
-          if (strip_method_name(methods[i].get_name()) == strip_method_name(m->get_name()))
+          if (strip_method_name(methods[i].get_name()) == strip_method_name(m->get_name()->get_string()))
           {
 
-            init_values[i].set_name("@" + m->get_name());
+            init_values[i].set_name("@" + m->get_name()->get_string());
           }
         }
       }
@@ -1051,16 +1014,22 @@ void CgenNode::code_init_function(CgenEnvironment *env)
   // TODO: add code here
   ValuePrinter vp(*env->cur_stream);
   // Set up class variables here
-  std::cerr << "CODE_INIT_FUNCTION" << std::endl;
+  std::cerr << "CODE_INIT_FUNCTION \t| Class: " << this->name->get_string() << std::endl;
+
   // for (attribute_mine *a : this->get_attributes_in_class())
   // {
   //   operand *toStore = new operand(a->get_return_type(), a->get_return_type().get_name());
   //   std::string rtt_name = a->get_return_type().get_name();
   //   env->add_binding(a->get_name(), toStore);
   // }
-  for (Feature f : this->get_features())
+
+  // set class in env
+  env->set_class(this);
+  for (Feature f : features)
   {
+    std::cerr << "BEGIN | FEATURE" << std::endl;
     f->code(env);
+    std::cerr << "END | FEATURE" << std::endl;
   }
 }
 
@@ -1132,27 +1101,45 @@ void method_class::code(CgenEnvironment *env)
 {
   if (cgen_debug)
   {
-    std::cerr << "method" << std::endl;
+    std::cerr << "method " << env->get_class()->get_type_name() << std::endl;
   }
-
   ValuePrinter vp(*env->cur_stream);
 
-  std::vector<operand> null;
-  vp.define(op_type(return_type->get_string()), name->get_string(), null);
+  std::vector<operand> method_parameters;
 
-  // change in later labs
-  //  vp.begin_block(name->get_string());
+  // add self
+  operand self_ = operand(op_type(env->get_class()->get_name()->get_string(), 1), "self");
+  method_parameters.emplace_back(self_);
+
+  Entry *self_name = new Entry("self", SELF_TYPE->get_index());
+  std::cerr << self_.get_typename() << " " << self_name->get_string() << " " << self->get_index() << std::endl;
+  env->open_scope();
+  env->add_binding(Symbol(self_name), &self_);
+
+  for (Formal f : formals)
+  {
+    method_parameters.push_back(operand(op_type(f->get_type_decl()->get_string()), f->get_name()->get_string()));
+  }
+  vp.define(op_type(return_type->get_string(), 1), env->get_class()->get_type_name() + "_" + name->get_string(), method_parameters);
+
   vp.begin_block("entry");
+  // operand self_ptr = vp.alloca_mem(self_.get_type());
+  // vp.store(self_, self_ptr);
 
-  // code() called with method's expression
+  // env->insert_scoped("self", &self_ptr);
+  //  env->dump_vartable();
+  //  operand test = *env->find_in_scopes(Symbol(self_name));
+
   operand finalExpression = expr->code(env);
   if (finalExpression.get_name() == "%self")
   {
-    finalExpression = vp.alloca_mem(op_type(return_type->get_string()));
-    finalExpression = vp.load(op_type(return_type->get_string()), finalExpression);
+    if (finalExpression.get_typename() != return_type->get_string())
+    {
+      finalExpression = conform(finalExpression, op_type(return_type->get_string(), 1), env);
+    }
   }
   vp.ret(finalExpression);
-
+  env->close_scope();
   vp.end_define();
 }
 
@@ -1200,7 +1187,7 @@ operand assign_class::code(CgenEnvironment *env)
   else
   {
     // TODO: Do I need alloc here?
-    // store = vp.alloca_mem(value.get_type());
+    store = vp.alloca_mem(value.get_type());
     op_type elem_type;
     findSym = *env->find_in_scopes(name);
     std::cerr << findSym.get_typename() << std::endl;
@@ -1212,16 +1199,17 @@ operand assign_class::code(CgenEnvironment *env)
     else
     {
       elem_type = findSym.get_type();
+      findSym.set_type(findSym.get_type().get_ptr_type());
     }
-
-    store = vp.getelementptr(elem_type, findSym, int_value(0), findSym.get_type());
+    value = vp.getelementptr(elem_type, findSym, int_value(0), findSym.get_type());
+    value = vp.load(value.get_type().get_deref_type(), value);
   }
 
   vp.store(value, store);
 
   // add to new scope
   operand *yo = new operand(value);
-  env->open_scope();
+  // env->open_scope();
   env->add_binding(name, yo);
 
   return value;
@@ -1563,7 +1551,7 @@ operand bool_const_class::code(CgenEnvironment *env)
 operand object_class::code(CgenEnvironment *env)
 {
   if (cgen_debug)
-    std::cerr << "Object" << std::endl;
+    std::cerr << "Object " << name->get_string() << " " << name->get_index() << std::endl;
 
   // TODO: Do checks later to see if acesses are found within scope
   // In future add more object checks here (ptrs, strings, custom objs)
@@ -1577,8 +1565,14 @@ operand object_class::code(CgenEnvironment *env)
   std::string obj_name = name->get_string();
   if (obj_name == "self")
   {
-    // oper = vp.alloca_mem(op_type(env->get_class()->get_type_name()));
-    oper = operand(op_type(env->get_class()->get_type_name()), "self");
+    std::cerr << "here???" << std::endl;
+    // add self to scope before passing
+    // env->dump_vartable();
+    // Entry *self_name = new Entry("self", SELF_TYPE->get_index());
+    // operand test = *env->find_in_scopes(Symbol(self_name));
+    // std::cerr << test.get_name() << " YO I'm tired of this class" << std::endl;
+    // oper = *env->find_scoped("self");
+    oper = operand(op_type(env->get_class()->get_type_name(), 1), "self");
   }
   else
   {
@@ -1615,12 +1609,64 @@ operand no_expr_class::code(CgenEnvironment *env)
 operand static_dispatch_class::code(CgenEnvironment *env)
 {
   if (cgen_debug)
-    std::cerr << "static dispatch" << std::endl;
+    std::cerr << "static_dispatch " << std::endl;
 #ifndef LAB2
   assert(0 && "Unsupported case for phase 1");
 #else
   // TODO: add code here and replace `return operand()`
-  return operand();
+  ValuePrinter vp(*env->cur_stream);
+  std::vector<op_type> arg_types;
+  std::vector<operand> args;
+  // add self
+  std::string function_name = name->get_string();
+
+  operand resolve = expr->code(env);
+
+  // Check if the current class has the method
+  // Or its parent class
+  // return the name of the class where it is found
+  // std::cerr << "TEST BEGIN " << env->get_class()->get_name()->get_string() << std::endl;
+  std::string find_class;
+  /*
+  iterate through class table
+  if type_name found to match cgennode name return cgennode
+  */
+
+  CgenNode *node;
+  for (CgenNode *n : env->get_class()->get_classtable()->get_classes())
+  {
+    if (type_name->get_string().substr(1) == (n->get_name()->get_string() + "*"))
+    {
+      node = n;
+    }
+  }
+
+  method_mine *method_ = node->find_method_class_init(name->get_string().substr(name->get_string().find("_") + 1)); // seg fault here
+
+  // add self to method
+  // args.pushback(operand(op))
+  operand self_ = operand(op_type(env->get_class()->get_name()->get_string(), 1), "self");
+  if (self_.get_type().get_name() != type_name->get_string())
+  {
+    self_ = conform(self_, op_type(method_->get_class_origin()->get_name()->get_string(), 1), env);
+  }
+  args.emplace_back(self_);
+  arg_types.emplace_back(self_.get_type());
+
+  int iter = 0;
+  while (actual->more(iter))
+  {
+    operand hold = actual->nth(iter)->code(env);
+    arg_types.emplace_back(hold.get_type());
+    args.emplace_back(hold);
+    iter++;
+  }
+  operand call_result = vp.call(arg_types, method_->get_return_type(), method_->get_name()->get_string(), true, args);
+  if (!call_result.get_type().is_ptr())
+  {
+    call_result = conform(call_result, call_result.get_type().get_ptr_type(), env);
+  }
+  return call_result;
 #endif
 }
 
@@ -1631,7 +1677,22 @@ operand string_const_class::code(CgenEnvironment *env)
 #ifndef LAB2
   assert(0 && "Unsupported case for phase 1");
 #else
-  operand ret = operand(op_type("String"), token->get_string());
+  ValuePrinter vp(*env->cur_stream);
+  Symbol found = stringtable.lookup_string(token->get_string());
+  std::string *global_name;
+  if (env->get_class()->get_classtable()->find_const(token->get_string()) != nullptr)
+  {
+    global_name = env->get_class()->get_classtable()->find_const(token->get_string());
+  }
+  else
+  {
+    throw std::nullopt;
+  }
+  std::cerr << "String Constant found: " << *global_name << std::endl;
+
+  // init char arr
+  global_value ret = global_value(op_type("String", 1), *global_name, const_value(op_type("String", 1), token->get_string(), true));
+
   return ret;
 #endif
 }
@@ -1651,58 +1712,116 @@ operand dispatch_class::code(CgenEnvironment *env)
 
   ValuePrinter vp(*env->cur_stream);
 
-  operand fin = expr->code(env);
-  operand method_self;
-
-  // std::cerr << "YO BOOTY HOLE " << fin.get_name() << std::endl;
-  // std::cerr << "YO BOOTY HOLE #2" << fin.get_typename() << std::endl;
-  // // this is a static dispatch
-  // if(fin.get_name() == "%self"){
-  //   operand temp_hold = vp.alloca_mem(op_type(fin.get_typename()));
-  //   method_self = temp_hold;
-  // }else{
-  //   method_self = fin;
-  // }
-
+  operand method_self = expr->code(env);
   std::string functionName = name->get_string();
+
+  std::string actual_method_class;
+
+  //"self" is passed to every object
+  if (method_self.get_name() == "%self")
+  {
+    // static dispatch
+    method_mine *bark = env->get_class()->find_method_class_init(functionName);
+    Entry *speak = new Entry(bark->get_return_type().get_name(), bark->get_return_type().get_id());
+    static_dispatch_class yo(expr, Symbol(speak), bark->get_name(), actual);
+    return yo.code(env);
+  }
+
   std::vector<op_type> arg_types;
   std::vector<operand> args;
-  op_type result_type = fin.get_type();
 
-  // static dispatch
-  //"this" is passed to every object
-  method_self = vp.alloca_mem(op_type(env->get_class()->get_type_name()));
+  // make a temp obj
+  operand ptr = vp.alloca_mem(method_self.get_type());
+  // vp.store(method_self, ptr);
 
-  args.push_back(method_self);
-  arg_types.emplace_back(method_self.get_type());
-  // actual contains parameters of function dispatch
+  // add self
+  args.push_back(ptr);
+  arg_types.emplace_back(ptr.get_type());
+
   int iter = 0;
   while (actual->more(iter))
   {
     operand hold = actual->nth(iter)->code(env);
-    args.emplace_back(hold);
     arg_types.emplace_back(hold.get_type());
+    args.emplace_back(hold);
     iter++;
   }
-  operand store = vp.alloca_mem(result_type);
 
-  vp.store(vp.call(arg_types, result_type, env->get_class()->get_name()->get_string() + "_" + functionName, true, args), store);
-  // operand almost = vp.call(arg_types, result_type, functionName, true, args);
+  // get vtable ptr
+  // operand vtable_ptr = vp.getelementptr(method_self.get_type(), ptr, int_value(0), method_self.get_type().get_ptr_type());
+  // vtable_ptr = vp.bitcast(vtable_ptr, op_type("_" + method_self.get_typename().substr(1) + "_vtable", 1));
+
+  // get method return type + index in vtable
+  CgenNode *class_to_search;
+  // search normal installed classes
+  for (CgenNode *n : env->get_class()->get_classtable()->get_classes())
+  {
+    // std::cerr << "Classname: " << n->get_name()->get_string() << std::endl;
+    if (method_self.get_typename().substr(1) == n->get_name()->get_string())
+      class_to_search = n;
+  }
+  // search special installed classes
+  for (CgenNode *n : env->get_class()->get_classtable()->get_special_classes())
+  {
+    // std::cerr << "Special classnames: " << n->get_name()->get_string() << std::endl;
+    if (method_self.get_typename().substr(1) == n->get_name()->get_string())
+      class_to_search = n;
+  }
+  method_mine *method_ = class_to_search->find_method_class_init(functionName);
+  op_type method_ret_type = method_->get_return_type();
+  //  get method from vtable
+  // operand method_ptr = vp.getelementptr(vtable_ptr.get_type().get_deref_type(), vtable_ptr, int_value(method_symbol->get_index()), op_func_ptr_type(method_ret_type, arg_types));
+
+  // actual contains parameters of function dispatch
+  if (actual_method_class.find("%") == 0)
+  {
+    actual_method_class = actual_method_class.substr(1);
+  }
+  operand call_result = vp.call(arg_types, method_ret_type, method_->get_name()->get_string(), true, args);
+  operand ret = vp.alloca_mem(method_ret_type);
+  vp.store(call_result, ret);
+
+  // vp.load(ret.get_type().get_deref_type(), ret);
 
   /*  Static Dispatch   */
-  // alloc mem for obj ptr of caller class type
+  // 0. alloc mem for obj ptr of caller class type
 
   /*  Dynamic Dispatch   */
-  // get addr for mem of caller obj
+  // 0. get addr for mem of caller obj
 
-  // get Vtable ptr from obj being called on
-  // load Vtable obj
-  // get ptr to function from vtable with index
-  // load the function ptr to vtmp
-  // call vtmp
+  // 1. get obj
+  // 2. get Vtable ptr from obj being called on
+  // 3. load Vtable obj
+  // 4. get ptr to function from vtable with index
+  // 5. load the function ptr to vtmp
+  // 6. call vtmp
+  return call_result;
 
-  return store;
 #endif
+}
+
+// returns the name of the class where the method is defined
+method_mine *CgenNode::find_method_class_init(std::string method_name)
+{
+  method_mine *def;
+  CgenNode *explore = this;
+  int found = 0;
+  while (!found)
+  {
+    if (explore->get_name()->get_string() == "Object")
+      found = 1;
+    for (method_mine *m : explore->get_methods_in_class())
+    {
+      if (method_name == strip_method_name(m->get_name()->get_string()))
+      {
+        def = m;
+        def->set_class_origin(explore);
+        found = 1;
+      }
+    }
+    explore = explore->get_parentNode();
+  }
+  return def;
 }
 
 // Handle a Cool case expression (selecting based on the type of an object)
@@ -1765,9 +1884,9 @@ void method_class::layout_feature(CgenNode *cls)
   else if (returnTypeString == "Bool")
     returnType = op_type(INT1);
   else if (returnTypeString == "SELF_TYPE")
-    returnType = op_type(cls->get_name()->get_string());
+    returnType = op_type(cls->get_name()->get_string(), 1);
   else
-    returnType = op_type(returnTypeString);
+    returnType = op_type(returnTypeString, 1);
 
   // Get all params (formals)
   std::vector<operand> parameters;
@@ -1775,13 +1894,9 @@ void method_class::layout_feature(CgenNode *cls)
   int iter = 0;
 
   // Add self
-
-  if (this->name->get_string() != "main")
-  {
-    op_type temp = op_type(cls->get_name()->get_string(), 1);
-    params.emplace_back(temp);
-    parameters.emplace_back(operand(temp, cls->get_name()->get_string()));
-  }
+  op_type temp = op_type(cls->get_name()->get_string(), 1);
+  params.emplace_back(temp);
+  parameters.emplace_back(operand(temp, cls->get_name()->get_string()));
 
   while (formals->more(iter))
   {
@@ -1794,9 +1909,16 @@ void method_class::layout_feature(CgenNode *cls)
     else if (typeName == "Bool")
       resolve_type = op_type(INT1);
     else if (typeName == "SELF_TYPE")
-      resolve_type = op_type(cls->get_name()->get_string());
+    {
+      if (cls->get_name()->get_string() == "Int")
+        resolve_type = op_type(INT32);
+      else if (cls->get_name()->get_string() == "Bool")
+        resolve_type = op_type(INT1);
+      else
+        resolve_type = op_type(cls->get_name()->get_string(), 1);
+    }
     else
-      resolve_type = op_type(typeName);
+      resolve_type = op_type(typeName, 1);
 
     // TODO:
     // SHOULD I CHECK IF PARAM IS SELF_TYPE AND THROW ERR
@@ -1805,7 +1927,11 @@ void method_class::layout_feature(CgenNode *cls)
     iter++;
   }
   // vp.declare(returnType, cls->get_name()->get_string() + "_" + this->name->get_string(), params);
-  cls->add_method(cls->get_name()->get_string() + "_" + this->name->get_string(), returnType, parameters, this->expr);
+
+  Entry *temp2 = new Entry(cls->get_name()->get_string() + "_" + name->get_string(), name->get_index());
+  Symbol method_with_prefix = Symbol(temp2);
+  std::cerr << "LAYOUT " << method_with_prefix->get_string() << std::endl;
+  cls->add_method(method_with_prefix, returnType, parameters, this->expr);
 
   // add method to class's children
   // for (CgenNode *a : cls->get_children())
@@ -2166,6 +2292,20 @@ operand conform(operand src, op_type type, CgenEnvironment *env)
   ValuePrinter vp(*env->cur_stream);
   // vp.alloca_mem(type);
   // src.set_type(type);
-  return vp.bitcast(src, type);
+  operand ret;
+  if (src.get_type().is_ptr() && !type.is_ptr())
+  {
+    operand temp = vp.bitcast(src, type.get_ptr_type());
+    ret = vp.load(type, temp);
+  }
+  else if (!src.get_type().is_ptr() && type.is_ptr())
+  {
+    ret = vp.getelementptr(src.get_type(), src, int_value(0), type);
+  }
+  else
+  {
+    ret = vp.bitcast(src, type);
+  }
+  return ret;
 }
 #endif
